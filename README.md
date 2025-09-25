@@ -2,7 +2,7 @@
 
 > **Run Helm charts on Docker/Podman without Kubernetes**
 
-<img width="512" height="512" alt="image" src="https://github.com/user-attachments/assets/c886c6ba-b2aa-4423-8044-13cd4a82b21c" />
+<img width="256" height="256" alt="image" src="https://github.com/user-attachments/assets/c886c6ba-b2aa-4423-8044-13cd4a82b21c" />
 
 
 ## About
