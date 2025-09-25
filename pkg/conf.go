@@ -6,7 +6,7 @@ import (
 )
 
 type ComposeConf struct{
-	ModuleVersion string `env:"MODULE_VERSION,required"`
+	ManifestDir string `env:"MANIFEST_DIR,required"`
 
 }
 
