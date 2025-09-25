@@ -6,6 +6,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/ashupednekar/compose/pkg/creds"
 	"github.com/spf13/cobra"
 )
 
@@ -26,19 +27,16 @@ var loginCmd = &cobra.Command{
 			fmt.Printf("error reading method flag: %s", err)
 			return
 		}
-		switch method{
-		case "dockerconfig":
-			fmt.Println("using docker config")
-		case "tokenrefresher":
-			fmt.Println("using token refresher")
-		default:
-			fmt.Printf("unknown authentication method: %s", method)
+		engine, err := cmd.Flags().GetString("engine")
+		if err != nil {
+			fmt.Printf("error reading engine flag: %s\n", err)
+			return
 		}
-		fmt.Println("login called")
+		if _, err := creds.AuthenticateWithRegistry(method, engine); err != nil{
+			fmt.Printf("error authenticating to registry: %s", err)
+		}
 	},
 }
-
-
 
 func init() {
 	rootCmd.AddCommand(loginCmd)
@@ -53,5 +51,7 @@ func init() {
 	// is called directly, e.g.:
 
 	loginCmd.Flags().StringP("method", "m", "dockerconfig", "Select between dockerconfig or tokenrefresher")
+	loginCmd.Flags().StringP("engine", "e", "docker", "Select between docker and podman")
+	loginCmd.Flags().BoolP("force", "f", false, "Force login, ignoring existing credentials")
 	// loginCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

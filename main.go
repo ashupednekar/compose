@@ -6,8 +6,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/bankbuddy/compose/cmd"
-	"github.com/bankbuddy/compose/pkg"
+	"github.com/ashupednekar/compose/cmd"
+	"github.com/ashupednekar/compose/pkg"
 )
 
 func main() {
