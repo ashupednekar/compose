@@ -2,7 +2,8 @@
 
 > **Run Helm charts on Docker/Podman without Kubernetes**
 
-![Compose mascot](mascot.svg)
+<img width="1024" height="1024" alt="image" src="https://github.com/user-attachments/assets/c886c6ba-b2aa-4423-8044-13cd4a82b21c" />
+
 
 ## About
 
