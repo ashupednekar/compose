@@ -1,13 +1,15 @@
 /*
 Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
 import (
 	"fmt"
 
+	"github.com/ashupednekar/compose/pkg/charts"
 	"github.com/spf13/cobra"
+	"helm.sh/helm/v3/pkg/action"
+	"helm.sh/helm/v3/pkg/cli"
 )
 
 // refreshCmd represents the refresh command
@@ -20,26 +22,48 @@ It does not modify the local working copy but shows a diff of containers, config
 This lets you preview changes before applying them with sync.
 
 Usage:
-compose refresh identity 6.2.4
+compose refresh 
 
-module – Name of the module (e.g., identity, payments).
-version – Specific version to fetch. Defaults to $MODULE_VERSION if not provided.
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("refresh called")
+		registry, err := cmd.Flags().GetString("registry")
+		if err != nil{
+			fmt.Printf("error getting registry flag: %s", err)
+		}
+		chart, err := cmd.Flags().GetString("chart")
+		if err != nil{
+			fmt.Printf("error getting chart flag: %s", err)
+		}
+		// values, err := cmd.Flags().GetString("values")
+		// if err != nil{
+		// 	fmt.Printf("error getting chart flag: %s", err)
+		// }
+		c, err := charts.NewChartUtils()
+		if err != nil{
+			fmt.Printf("error initializing chart utils")
+		}
+		actionConfig := new(action.Configuration)
+		if err := actionConfig.Init(nil, "", "secret", logDebug); err != nil{
+			 fmt.Printf("error initiating action config")
+		}
+		actionConfig.RegistryClient = c.Client
+		pull := action.NewPullWithOpts(action.WithConfig(actionConfig))
+		pull.Settings = cli.New()
+		pull.DestDir = "."
+	  if _, err := pull.Run(fmt.Sprintf("oci://%s/%s", registry, chart)); err != nil{
+		  fmt.Printf("error pulling chart: %v", err)
+	  }
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(refreshCmd)
 
-	// Here you will define your flags and configuration settings.
+	refreshCmd.Flags().StringP("chart", "c", "chart", "chart repository")
+  refreshCmd.Flags().StringP("registry", "r", "registry url", "registry url")
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// refreshCmd.PersistentFlags().String("foo", "", "A help for foo")
+}
 
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// refreshCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+func logDebug(format string, v ...interface{}){
+	fmt.Printf(format, v...)
 }
