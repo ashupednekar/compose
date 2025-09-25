@@ -43,6 +43,12 @@ func getDockerConfigPath(engine string) (string, error) {
 	case "docker":
 		configDir = filepath.Join(os.Getenv("HOME"), ".docker")
 	case "podman":
+		uid := os.Getuid()
+    runtimeDir := fmt.Sprintf("/run/user/%d/containers", uid)
+    authPath := filepath.Join(runtimeDir, "auth.json")
+    if _, err := os.Stat(authPath); err == nil {
+        return authPath, nil
+    }
 		if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
 			configDir = filepath.Join(xdgConfig, "containers")
 		} else {

@@ -32,7 +32,12 @@ var loginCmd = &cobra.Command{
 			fmt.Printf("error reading engine flag: %s\n", err)
 			return
 		}
-		if _, err := creds.AuthenticateWithRegistry(method, engine); err != nil{
+		force, err := cmd.Flags().GetBool("force")
+		if err != nil {
+			fmt.Printf("error reading force flag: %s\n", err)
+			return
+		}
+		if _, err := creds.AuthenticateWithRegistry(method, engine, force); err != nil{
 			fmt.Printf("error authenticating to registry: %s", err)
 		}
 	},
