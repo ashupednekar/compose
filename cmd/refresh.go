@@ -44,15 +44,22 @@ compose refresh
 		if err != nil{
 			fmt.Printf("error templating chart: %v\n", err)
 		}
-
-		fmt.Printf("%v", rel.Manifest)
-
+		apps, err := cUtils.Parse(rel.Manifest)
+		if err != nil{
+			fmt.Printf("error parsing manifest")
+		}
+		for _, app := range apps{
+			fmt.Printf("Name: %v\n", app.Name)
+			fmt.Printf("Image: %v\n", app.Image)
+			fmt.Printf("Command: %v\n", app.Command)
+			fmt.Printf("Envs: %v\n", app.Configs)
+			fmt.Printf("PostStart: %v\n===", app.PostStart)
+		}
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(refreshCmd)
-
   refreshCmd.Flags().StringP("registry", "r", "registry url", "registry url")
 	refreshCmd.Flags().StringP("chart", "c", "chart", "chart repository")
 	refreshCmd.Flags().StringP("values", "f", "values", "values path")

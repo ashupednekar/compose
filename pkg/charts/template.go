@@ -46,7 +46,6 @@ func (utils *ChartUtils) Template(registry string, chart string, valuesPath stri
       return nil, fmt.Errorf("failed to unmarshal YAML: %v", err)
   }
 
-	fmt.Printf("v: %v\n", values)
 	rel, err := renderer.Run(pulledChart, values)
 	if err != nil{
 		return nil, fmt.Errorf("error templating chart: %v\n", err)
@@ -124,14 +123,12 @@ func parseMappingNode(node *yaml.Node, result map[string]interface{}) error {
         var value interface{}
         switch valueNode.Kind {
         case yaml.MappingNode:
-            // Nested mapping
             nestedMap := make(map[string]interface{})
             if err := parseMappingNode(valueNode, nestedMap); err != nil {
                 return err
             }
             value = nestedMap
         case yaml.SequenceNode:
-            // Array/slice
             var seq []interface{}
             for _, item := range valueNode.Content {
                 var itemValue interface{}
@@ -142,16 +139,13 @@ func parseMappingNode(node *yaml.Node, result map[string]interface{}) error {
             }
             value = seq
         default:
-            // Scalar value (string, number, boolean, etc.)
             if err := valueNode.Decode(&value); err != nil {
                 return err
             }
         }
         
-        // Override any previous value with the same key
-        // This is where duplicate keys are handled - last one wins
         if _, exists := result[key]; exists {
-            fmt.Printf("Warning: Overriding duplicate key '%s' (previous definition ignored)\n", key)
+            //fmt.Printf("Warning: Overriding duplicate key '%s' (previous definition ignored)\n", key)
         }
         result[key] = value
     }
