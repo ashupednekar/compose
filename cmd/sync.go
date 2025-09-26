@@ -1,12 +1,12 @@
 /*
 Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
 import (
 	"fmt"
 
+	"github.com/ashupednekar/compose/pkg/charts"
 	"github.com/spf13/cobra"
 )
 
@@ -27,20 +27,42 @@ compose sync <module> [version]
 Alto triggers activities like image pulls in the background... 
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("sync called")
+		registry, err := cmd.Flags().GetString("registry")
+		if err != nil{
+			fmt.Printf("error getting registry flag: %s", err)
+		}
+		chart, err := cmd.Flags().GetString("chart")
+		if err != nil{
+			fmt.Printf("error getting chart flag: %s", err)
+		}
+		valuesPath, err := cmd.Flags().GetString("values")
+		if err != nil{
+			fmt.Printf("error getting chart flag: %s", err)
+		}
+		cUtils, err := charts.NewChartUtils()
+		if err != nil{
+			fmt.Printf("error initializing chart utils")
+		}
+
+		apps, err := cUtils.Parse(registry, chart, valuesPath)
+		if err != nil{
+			fmt.Printf("error parsing manifest")
+		}
+		for _, app := range apps{
+			fmt.Printf("Name: %v\n", app.Name)
+			fmt.Printf("Image: %v\n", app.Image)
+			fmt.Printf("Command: %v\n", app.Command)
+			fmt.Printf("Envs: %v\n", app.Configs)
+			fmt.Printf("PostStart: %v\n===", app.PostStart)
+		}
+
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(syncCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// syncCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// syncCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+  syncCmd.Flags().StringP("registry", "r", "registry url", "registry url")
+	syncCmd.Flags().StringP("chart", "c", "chart", "chart repository")
+	syncCmd.Flags().StringP("values", "f", "values", "values path")
 }
