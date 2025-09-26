@@ -5,7 +5,6 @@ package cmd
 
 import (
 	"fmt"
-
 	"github.com/ashupednekar/compose/pkg/charts"
 	"github.com/spf13/cobra"
 )
@@ -39,7 +38,6 @@ Alto triggers activities like image pulls in the background...
 		if err != nil{
 			fmt.Printf("error initializing chart utils")
 		}
-
 		apps, err := cUtils.Parse(chart, valuesPath)
 		if err != nil{
 			fmt.Printf("error parsing manifest")
@@ -49,9 +47,11 @@ Alto triggers activities like image pulls in the background...
 			fmt.Printf("Image: %v\n", app.Image)
 			fmt.Printf("Command: %v\n", app.Command)
 			fmt.Printf("Envs: %v\n", app.Configs)
-			fmt.Printf("PostStart: %v\n===", app.PostStart)
+			fmt.Printf("PostStart: %v\n===", app.PostStart)	
 		}
-
+		if err := charts.WriteCompose(apps, charts.ExtractName(chart)); err != nil {
+				fmt.Printf("error writing docker compose: %s", err)
+		}
 	},
 }
 

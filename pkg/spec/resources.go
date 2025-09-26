@@ -88,11 +88,11 @@ type DockerComposeService struct{
 	Volumes     []string          `yaml:"volumes,omitempty"`
 	Restart     string            `yaml:"restart,omitempty"`
 	Networks    []string          `yaml:"networks,omitempty"`
+	NetworkMode string `yaml:"network_mode,omitempty"`
 }
 
 type DockerCompose struct{
 	Services map[string]DockerComposeService `yaml:"services"`
 	Networks map[string]interface{} `yaml:"networks"`
-	NetworkMode string `yaml:"networks_mode,omitempty"`
 }
 
