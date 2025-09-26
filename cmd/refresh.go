@@ -51,17 +51,21 @@ compose refresh
 		}
 		actionConfig.RegistryClient = cUtils.Client
 
-
+		chartPath := fmt.Sprintf("/tmp/%s", chart)
+		os.RemoveAll(chartPath)
 		pull := action.NewPullWithOpts(action.WithConfig(actionConfig))
 		pull.Settings = cli.New()
 		pull.DestDir = "/tmp"
-		pull.Untar = false
+		pull.Untar = true 
 		pull.Version = "*"
-		chartPath, err := pull.Run(fmt.Sprintf("oci://%s/%s", registry, chart))
-		if err != nil{
+		if _, err := pull.Run(fmt.Sprintf("oci://%s/%s", registry, chart)); err != nil{
 		 fmt.Printf("error pulling chart: %v\n", err)
 		}
+		fmt.Printf("chart pulled at: %s\n", chartPath)
 		pulledChart, err := loader.Load(chartPath)
+		if err != nil{
+			fmt.Printf("error loading chart: %v\n", err)
+		}
 	
 		renderer := action.NewInstall(&action.Configuration{})
 		renderer.ClientOnly = true
@@ -74,7 +78,8 @@ compose refresh
 		if err != nil {
         fmt.Printf("failed to unmarshal YAML: %v", err)
     }
-		
+
+		fmt.Printf("v: %v\n", values)
 		rel, err := renderer.Run(pulledChart, values)
 		if err != nil{
 			fmt.Printf("error templating chart: %v\n", err)
@@ -98,51 +103,102 @@ func logDebug(format string, v ...interface{}){
 	fmt.Printf(format, v...)
 }
 
-// mergeMap merges key-value pairs from src into dst, overriding duplicates
-func mergeMap(dst, src map[string]interface{}) {
-    for k, v := range src {
-        // if both are maps, merge recursively
-        if vMap, ok := v.(map[string]interface{}); ok {
-            if dstMap, ok := dst[k].(map[string]interface{}); ok {
-                mergeMap(dstMap, vMap)
-                continue
-            }
-        }
-        // otherwise override
-        dst[k] = v
-    }
-}
 
-// unmarshalWithOverride parses YAML and allows duplicates by overriding
+
 func unmarshalWithOverride(filename string) (map[string]interface{}, error) {
     data, err := os.ReadFile(filename)
     if err != nil {
-        return nil, err
+        return nil, fmt.Errorf("failed to read file %s: %w", filename, err)
     }
 
-    // Parse into yaml.Node first
     var root yaml.Node
     if err := yaml.Unmarshal(data, &root); err != nil {
-        return nil, err
+        return nil, fmt.Errorf("failed to parse YAML: %w", err)
     }
 
     result := make(map[string]interface{})
-
-    // Walk through the document manually
+    
+    // Handle the document structure
     if root.Kind == yaml.DocumentNode && len(root.Content) > 0 {
-        if root.Content[0].Kind == yaml.MappingNode {
-            for i := 0; i < len(root.Content[0].Content); i += 2 {
-                key := root.Content[0].Content[i].Value
-                var value interface{}
-                if err := root.Content[0].Content[i+1].Decode(&value); err != nil {
-                    return nil, err
-                }
-                // override duplicates
-                result[key] = value
-            }
+        if err := parseNode(root.Content[0], result); err != nil {
+            return nil, err
         }
     }
-
+    
     return result, nil
 }
 
+func parseNode(node *yaml.Node, result map[string]interface{}) error {
+    switch node.Kind {
+    case yaml.MappingNode:
+        return parseMappingNode(node, result)
+    case yaml.SequenceNode:
+        // Handle sequences if needed
+        var seq []interface{}
+        for _, item := range node.Content {
+            var value interface{}
+            if err := item.Decode(&value); err != nil {
+                return err
+            }
+            seq = append(seq, value)
+        }
+        // This case shouldn't occur at root level for typical YAML files
+        return fmt.Errorf("unexpected sequence at root level")
+    default:
+        return fmt.Errorf("unexpected node type: %v", node.Kind)
+    }
+}
+
+func parseMappingNode(node *yaml.Node, result map[string]interface{}) error {
+    if len(node.Content)%2 != 0 {
+        return fmt.Errorf("invalid mapping node: odd number of elements")
+    }
+
+    for i := 0; i < len(node.Content); i += 2 {
+        keyNode := node.Content[i]
+        valueNode := node.Content[i+1]
+        
+        if keyNode.Kind != yaml.ScalarNode {
+            return fmt.Errorf("non-scalar key found at line %d", keyNode.Line)
+        }
+        
+        key := keyNode.Value
+        
+        // Handle different value types
+        var value interface{}
+        switch valueNode.Kind {
+        case yaml.MappingNode:
+            // Nested mapping
+            nestedMap := make(map[string]interface{})
+            if err := parseMappingNode(valueNode, nestedMap); err != nil {
+                return err
+            }
+            value = nestedMap
+        case yaml.SequenceNode:
+            // Array/slice
+            var seq []interface{}
+            for _, item := range valueNode.Content {
+                var itemValue interface{}
+                if err := item.Decode(&itemValue); err != nil {
+                    return err
+                }
+                seq = append(seq, itemValue)
+            }
+            value = seq
+        default:
+            // Scalar value (string, number, boolean, etc.)
+            if err := valueNode.Decode(&value); err != nil {
+                return err
+            }
+        }
+        
+        // Override any previous value with the same key
+        // This is where duplicate keys are handled - last one wins
+        if _, exists := result[key]; exists {
+            fmt.Printf("Warning: Overriding duplicate key '%s' (previous definition ignored)\n", key)
+        }
+        result[key] = value
+    }
+    
+    return nil
+}
