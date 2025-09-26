@@ -2,7 +2,9 @@ package charts
 
 import (
 	"fmt"
+	"net/url"
 	"os"
+	"strings"
 
 	"go.yaml.in/yaml/v3"
 	"helm.sh/helm/v3/pkg/action"
@@ -11,24 +13,25 @@ import (
 	"helm.sh/helm/v3/pkg/release"
 )
 
-func (utils *ChartUtils) Template(registry string, chart string, valuesPath string) (*release.Release, error){
+func (utils *ChartUtils) Template(chart string, valuesPath string) (*release.Release, error){
 	actionConfig := new(action.Configuration)
 	if err := actionConfig.Init(nil, "", "secret", logDebug); err != nil{
 		 fmt.Printf("error initiating action config")
 	}
 	actionConfig.RegistryClient = utils.Client
-
-	chartPath := fmt.Sprintf("/tmp/%s", chart)
-	os.RemoveAll(chartPath)
+	name := ExtractName(chart)
+	os.RemoveAll(name)
+	chartPath := fmt.Sprintf("/tmp/%s", name)
 	pull := action.NewPullWithOpts(action.WithConfig(actionConfig))
 	pull.Settings = cli.New()
 	pull.DestDir = "/tmp"
 	pull.Untar = true 
 	pull.Version = "*"
-	if _, err := pull.Run(fmt.Sprintf("oci://%s/%s", registry, chart)); err != nil{
+	if _, err := pull.Run(chart); err != nil{
 	 fmt.Printf("error pulling chart: %v\n", err)
 	}
 	fmt.Printf("chart pulled at: %s\n", chartPath)
+
 	pulledChart, err := loader.Load(chartPath)
 	if err != nil{
 		fmt.Printf("error loading chart: %v\n", err)
@@ -37,7 +40,7 @@ func (utils *ChartUtils) Template(registry string, chart string, valuesPath stri
 	renderer := action.NewInstall(&action.Configuration{})
 	renderer.ClientOnly = true
 	renderer.DryRun = true
-	renderer.ReleaseName = chart
+	renderer.ReleaseName = "tmp" 
 	renderer.Namespace = "default"
 	renderer.DisableHooks = true
 
@@ -151,5 +154,29 @@ func parseMappingNode(node *yaml.Node, result map[string]interface{}) error {
     }
     
     return nil
+}
+
+func ExtractName(ref string) string {
+	u, err := url.Parse(ref)
+	var path string
+	if err == nil && u.Scheme != "" && u.Path != "" {
+		// e.g. oci://host/repo/chart:tag
+		path = u.Path
+	} else {
+		// fallback: treat the whole string as a path
+		path = ref
+	}
+	// Trim leading slashes and split into segments
+	path = strings.TrimLeft(path, "/")
+	segments := strings.Split(path, "/")
+	if len(segments) == 0 {
+		return ""
+	}
+	last := segments[len(segments)-1]
+	// Remove any :tag or @digest suffix
+	if i := strings.IndexAny(last, ":@"); i >= 0 {
+		last = last[:i]
+	}
+	return last
 }
 

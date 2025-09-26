@@ -24,10 +24,6 @@ compose refresh
 
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
-		registry, err := cmd.Flags().GetString("registry")
-		if err != nil{
-			fmt.Printf("error getting registry flag: %s", err)
-		}
 		chart, err := cmd.Flags().GetString("chart")
 		if err != nil{
 			fmt.Printf("error getting chart flag: %s", err)
@@ -40,7 +36,7 @@ compose refresh
 		if err != nil{
 			fmt.Printf("error initializing chart utils")
 		}
-		rel, err := cUtils.Template(registry, chart, valuesPath)
+		rel, err := cUtils.Template(chart, valuesPath)
 		if err != nil{
 			fmt.Printf("error templating chart: %v\n", err)
 		}
@@ -51,7 +47,6 @@ compose refresh
 
 func init() {
 	rootCmd.AddCommand(refreshCmd)
-  refreshCmd.Flags().StringP("registry", "r", "registry url", "registry url")
 	refreshCmd.Flags().StringP("chart", "c", "chart", "chart repository")
 	refreshCmd.Flags().StringP("values", "f", "values", "values path")
 

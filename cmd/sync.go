@@ -27,10 +27,6 @@ compose sync <module> [version]
 Alto triggers activities like image pulls in the background... 
 	`,
 	Run: func(cmd *cobra.Command, args []string) {
-		registry, err := cmd.Flags().GetString("registry")
-		if err != nil{
-			fmt.Printf("error getting registry flag: %s", err)
-		}
 		chart, err := cmd.Flags().GetString("chart")
 		if err != nil{
 			fmt.Printf("error getting chart flag: %s", err)
@@ -44,7 +40,7 @@ Alto triggers activities like image pulls in the background...
 			fmt.Printf("error initializing chart utils")
 		}
 
-		apps, err := cUtils.Parse(registry, chart, valuesPath)
+		apps, err := cUtils.Parse(chart, valuesPath)
 		if err != nil{
 			fmt.Printf("error parsing manifest")
 		}
@@ -62,7 +58,6 @@ Alto triggers activities like image pulls in the background...
 func init() {
 	rootCmd.AddCommand(syncCmd)
 
-  syncCmd.Flags().StringP("registry", "r", "registry url", "registry url")
 	syncCmd.Flags().StringP("chart", "c", "chart", "chart repository")
 	syncCmd.Flags().StringP("values", "f", "values", "values path")
 }

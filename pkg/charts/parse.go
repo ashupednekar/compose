@@ -8,8 +8,8 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-func (utils *ChartUtils) Parse(registry string, chart string, valuesPath string) ([]spec.App, error){
-	rel, err := utils.Template(registry, chart, valuesPath)
+func (utils *ChartUtils) Parse(chart string, valuesPath string) ([]spec.App, error){
+	rel, err := utils.Template(chart, valuesPath)
 	if err != nil{
 		fmt.Printf("error templating chart: %v\n", err)
 	}
