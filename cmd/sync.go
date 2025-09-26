@@ -30,6 +30,11 @@ Alto triggers activities like image pulls in the background...
 		if err != nil{
 			fmt.Printf("error getting chart flag: %s", err)
 		}
+		setValues, err := cmd.Flags().GetStringSlice("set")
+		if err != nil {
+			fmt.Printf("error getting set flags: %s\n", err)
+			return
+		}
 		valuesPath, err := cmd.Flags().GetString("values")
 		if err != nil{
 			fmt.Printf("error getting chart flag: %s", err)
@@ -38,7 +43,7 @@ Alto triggers activities like image pulls in the background...
 		if err != nil{
 			fmt.Printf("error initializing chart utils")
 		}
-		apps, err := cUtils.Parse(chart, valuesPath)
+		apps, err := cUtils.Parse(chart, valuesPath, setValues)
 		if err != nil{
 			fmt.Printf("error parsing manifest")
 		}
@@ -60,4 +65,5 @@ func init() {
 
 	syncCmd.Flags().StringP("chart", "c", "chart", "chart repository")
 	syncCmd.Flags().StringP("values", "f", "values", "values path")
+	syncCmd.Flags().StringSliceP("set", "s", []string{}, "Set values on the command line (can specify multiple)")
 }

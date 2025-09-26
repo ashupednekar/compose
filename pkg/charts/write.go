@@ -11,10 +11,10 @@ import (
 
 
 func WriteCompose(apps []spec.App, name string) error {
-	dockerCompose := spec.DockerCompose{
-		Services: make(map[string]spec.DockerComposeService),
-	}
 	for _, app := range apps{
+		dockerCompose := spec.DockerCompose{
+			Services: make(map[string]spec.DockerComposeService),
+		}
 		service := spec.DockerComposeService{
 			Image: app.Image,
 			Command: app.Command,
@@ -24,20 +24,25 @@ func WriteCompose(apps []spec.App, name string) error {
 		  NetworkMode: "host",
 		}
 		dockerCompose.Services[app.Name] = service
+    data, err := yaml.Marshal(&dockerCompose)
+	  if err != nil{
+	  	return fmt.Errorf("error marshaling docker-compose to yaml: %v\n", err)
+	  }
+		var composeDir string
+		if name == app.Name{
+			composeDir = fmt.Sprintf("%s/%s", pkg.Settings.ManifestDir, app.Name)
+		}else{
+			composeDir = fmt.Sprintf("%s/%s/%s", pkg.Settings.ManifestDir, name, app.Name)
+		}
+	  if err := os.MkdirAll(composeDir, 0755); err != nil{
+	  	return fmt.Errorf("error creating manifest subdirectory")
+	  }
+	  if err := os.WriteFile(
+	  	fmt.Sprintf("%s/docker-compose.yaml", composeDir), data, 0644,
+	  ); err != nil{
+	  	return fmt.Errorf("error writing docker-compose yaml %v\n", err)
+	  }
+	  fmt.Printf("docker-compose.yaml written to %s\n", composeDir)
 	}
-	data, err := yaml.Marshal(&dockerCompose)
-	if err != nil{
-		return fmt.Errorf("error marshaling docker-compose to yaml: %v\n", err)
-	}
-	composeDir := fmt.Sprintf("%s/%s", pkg.Settings.ManifestDir, name)
-	if err := os.MkdirAll(composeDir, 0755); err != nil{
-		return fmt.Errorf("error creating manifest subdirectory")
-	}
-	if err := os.WriteFile(
-		fmt.Sprintf("%s/docker-compose.yaml", composeDir), data, 0644,
-	); err != nil{
-		return fmt.Errorf("error writing docker-compose yaml %v\n", err)
-	}
-	fmt.Printf("docker-compose.yaml written to %s", composeDir)
 	return nil
 }

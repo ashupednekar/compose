@@ -8,8 +8,8 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-func (utils *ChartUtils) Parse(chart string, valuesPath string) ([]spec.App, error){
-	rel, err := utils.Template(chart, valuesPath)
+func (utils *ChartUtils) Parse(chart string, valuesPath string, setValues []string) ([]spec.App, error){
+	rel, err := utils.Template(chart, valuesPath, setValues)
 	if err != nil{
 		fmt.Printf("error templating chart: %v\n", err)
 	}
@@ -170,10 +170,16 @@ func extractAppInfo(resource spec.Resource, configMaps map[string]interface{}) (
 		}
 	}
 
+
+	// TODO: pending, valueFrom.fieldRef.fieldPath
 	if envInterface, exists := container["env"]; exists {
 		if envSlice, ok := envInterface.([]interface{}); ok {
 			for _, env := range envSlice {
 				if envMap, ok := env.(map[string]interface{}); ok {
+					if value, exists := envMap["value"]; exists{
+						key := getStringFromMap(envMap, "name")
+						app.Configs[key] = value.(string)
+					}
 					if valueFrom, exists := envMap["valueFrom"]; exists {
 						if valueFromMap, ok := valueFrom.(map[string]interface{}); ok {
 							if configMapKeyRef, exists := valueFromMap["configMapKeyRef"]; exists {

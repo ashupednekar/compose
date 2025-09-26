@@ -13,7 +13,7 @@ import (
 	"helm.sh/helm/v3/pkg/release"
 )
 
-func (utils *ChartUtils) Template(chart string, valuesPath string) (*release.Release, error){
+func (utils *ChartUtils) Template(chart string, valuesPath string, setValues []string) (*release.Release, error){
 	actionConfig := new(action.Configuration)
 	if err := actionConfig.Init(nil, "", "secret", logDebug); err != nil{
 		 fmt.Printf("error initiating action config")
@@ -40,11 +40,13 @@ func (utils *ChartUtils) Template(chart string, valuesPath string) (*release.Rel
 	renderer := action.NewInstall(&action.Configuration{})
 	renderer.ClientOnly = true
 	renderer.DryRun = true
-	renderer.ReleaseName = "tmp" 
+	renderer.ReleaseName = ExtractName(chart)
 	renderer.Namespace = "default"
 	renderer.DisableHooks = true
 
 	values, err := unmarshalWithOverride(valuesPath)
+	//TODO: use setValues to add/override stuff
+
 	if err != nil {
       return nil, fmt.Errorf("failed to unmarshal YAML: %v", err)
   }
@@ -62,13 +64,16 @@ func logDebug(format string, v ...interface{}){
 }
 
 
-
 func unmarshalWithOverride(filename string) (map[string]interface{}, error) {
+		_, err := os.Stat(filename)
+		if err != nil && os.IsNotExist(err){
+			return make(map[string]interface{}), nil
+		}
+
     data, err := os.ReadFile(filename)
     if err != nil {
         return nil, fmt.Errorf("failed to read file %s: %w", filename, err)
     }
-
     var root yaml.Node
     if err := yaml.Unmarshal(data, &root); err != nil {
         return nil, fmt.Errorf("failed to parse YAML: %w", err)
