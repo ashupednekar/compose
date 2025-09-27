@@ -47,13 +47,6 @@ Alto triggers activities like image pulls in the background...
 		if err != nil{
 			fmt.Printf("error parsing manifest")
 		}
-		for _, app := range apps{
-			fmt.Printf("Name: %v\n", app.Name)
-			fmt.Printf("Image: %v\n", app.Image)
-			fmt.Printf("Command: %v\n", app.Command)
-			fmt.Printf("Envs: %v\n", app.Configs)
-			fmt.Printf("PostStart: %v\n===", app.PostStart)	
-		}
 		if err := charts.WriteCompose(apps, charts.ExtractName(chart)); err != nil {
 				fmt.Printf("error writing docker compose: %s", err)
 		}

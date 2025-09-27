@@ -9,6 +9,7 @@ type App struct {
 	Command   []string          `json:"command,omitempty"`
 	PostStart *PostStartHook    `json:"postStart,omitempty"`
 	Configs   map[string]string `json:"configs"`
+	Mounts    map[string]string `json:"mounts"` 
 }
 
 type PostStartHook struct {

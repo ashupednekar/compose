@@ -1,6 +1,7 @@
 package charts
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -17,6 +18,7 @@ func (utils *ChartUtils) Parse(chart string, valuesPath string, setValues []stri
 	resources := strings.Split(rel.Manifest, "---")
 
 	configMaps := make(map[string]interface{})
+	secrets := make(map[string]interface{})
 	var apps []spec.App
 
 	for _, content := range resources{
@@ -34,8 +36,14 @@ func (utils *ChartUtils) Parse(chart string, valuesPath string, setValues []stri
 			if name != "" {
 				configMaps[name] = resource.Data
 			}
+		} else if resource.Kind == "Secret" {
+			name := getStringFromMap(resource.Metadata, "name")
+			if name != "" {
+				secrets[name] = resource.Data
+			}
 		}
 	}
+	
 	for _, content := range resources {
 		content = strings.TrimSpace(content)
 		if content == "" {
@@ -46,7 +54,7 @@ func (utils *ChartUtils) Parse(chart string, valuesPath string, setValues []stri
 			continue
 		}
 		if resource.Kind == "Deployment" || resource.Kind == "StatefulSet" {
-			app, err := extractAppInfo(resource, configMaps)
+			app, err := extractAppInfo(resource, configMaps, secrets)
 			if err == nil && app != nil {
 				apps = append(apps, *app)
 			}
@@ -56,7 +64,7 @@ func (utils *ChartUtils) Parse(chart string, valuesPath string, setValues []stri
 }
 
 
-func extractAppInfo(resource spec.Resource, configMaps map[string]interface{}) (*spec.App, error) {
+func extractAppInfo(resource spec.Resource, configMaps map[string]interface{}, secrets map[string]interface{}) (*spec.App, error) {
 	name := getStringFromMap(resource.Metadata, "name")
 	if name == "" {
 		return nil, fmt.Errorf("missing metadata.name")
@@ -92,6 +100,7 @@ func extractAppInfo(resource spec.Resource, configMaps map[string]interface{}) (
 		Type:    resource.Kind,
 		Image:   getStringFromMap(container, "image"),
 		Configs: make(map[string]string),
+		Mounts:  make(map[string]string),
 	}
 
 	if cmdInterface, exists := container["command"]; exists {
@@ -205,39 +214,100 @@ func extractAppInfo(resource spec.Resource, configMaps map[string]interface{}) (
 		}
 	}
 
-	// if volumeMountsInterface, exists := container["volumeMounts"]; exists {
-	// 	if volumeMounts, ok := volumeMountsInterface.([]interface{}); ok {
-	// 		if volumesInterface, exists := templateSpec["volumes"]; exists {
-	// 			if volumes, ok := volumesInterface.([]interface{}); ok {
-	// 				for _, volumeMount := range volumeMounts {
-	// 					if mountMap, ok := volumeMount.(map[string]interface{}); ok {
-	// 						mountName := getStringFromMap(mountMap, "name")
-	//
-	// 						for _, volume := range volumes {
-	// 							if volumeMap, ok := volume.(map[string]interface{}); ok {
-	// 								volumeName := getStringFromMap(volumeMap, "name")
-	// 								if volumeName == mountName {
-	// 									if configMap, exists := volumeMap["configMap"]; exists {
-	// 										if configMapMap, ok := configMap.(map[string]interface{}); ok {
-	// 											configMapName := getStringFromMap(configMapMap, "name")
-	// 											if config, exists := configMaps[configMapName]; exists {
-	// 												if cm, ok := config.(string); ok{
-	// 												  app.Configs[configMapName] = cm
-	// 												}else{
-	// 													fmt.Printf("warning: non string configmap, ignoring: %s\n", cm)
-	// 												}
-	// 											}
-	// 										}
-	// 									}
-	// 								}
-	// 							}
-	// 						}
-	// 					}
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-	// }
+	if volumeMountsInterface, exists := container["volumeMounts"]; exists {
+		if volumeMounts, ok := volumeMountsInterface.([]interface{}); ok {
+			if volumesInterface, exists := templateSpec["volumes"]; exists {
+				if volumes, ok := volumesInterface.([]interface{}); ok {
+					for _, volumeMount := range volumeMounts {
+						if mountMap, ok := volumeMount.(map[string]interface{}); ok {
+							mountName := getStringFromMap(mountMap, "name")
+							mountPath := getStringFromMap(mountMap, "mountPath")
+	
+							for _, volume := range volumes {
+								if volumeMap, ok := volume.(map[string]interface{}); ok {
+									volumeName := getStringFromMap(volumeMap, "name")
+									if volumeName == mountName {
+										// Handle ConfigMap volumes
+										if configMap, exists := volumeMap["configMap"]; exists {
+											if configMapMap, ok := configMap.(map[string]interface{}); ok {
+												configMapName := getStringFromMap(configMapMap, "name")
+												if config, exists := configMaps[configMapName]; exists {
+													if cfgData, ok := config.(map[string]interface{}); ok {
+														// Check if specific items are defined
+														if itemsInterface, hasItems := configMapMap["items"]; hasItems {
+															if items, ok := itemsInterface.([]interface{}); ok {
+																for _, item := range items {
+																	if itemMap, ok := item.(map[string]interface{}); ok {
+																		key := getStringFromMap(itemMap, "key")
+																		path := getStringFromMap(itemMap, "path")
+																		if value, exists := cfgData[key]; exists {
+																			fullPath := mountPath + "/" + path
+																			app.Mounts[fullPath] = fmt.Sprintf("%v", value)
+																		}
+																	}
+																}
+															}
+														} else {
+															// Mount all keys from ConfigMap
+															for key, value := range cfgData {
+																fullPath := mountPath + "/" + key
+																app.Mounts[fullPath] = fmt.Sprintf("%v", value)
+															}
+														}
+													}
+												}
+											}
+										}
+										
+										// Handle Secret volumes
+										if secret, exists := volumeMap["secret"]; exists {
+											if secretMap, ok := secret.(map[string]interface{}); ok {
+												secretName := getStringFromMap(secretMap, "secretName")
+												if secretData, exists := secrets[secretName]; exists {
+													if secData, ok := secretData.(map[string]interface{}); ok {
+														// Check if specific items are defined
+														if itemsInterface, hasItems := secretMap["items"]; hasItems {
+															if items, ok := itemsInterface.([]interface{}); ok {
+																for _, item := range items {
+																	if itemMap, ok := item.(map[string]interface{}); ok {
+																		key := getStringFromMap(itemMap, "key")
+																		path := getStringFromMap(itemMap, "path")
+																		if encodedValue, exists := secData[key]; exists {
+																			// Decode base64
+																			if decodedBytes, err := base64.StdEncoding.DecodeString(fmt.Sprintf("%v", encodedValue)); err == nil {
+																				fullPath := mountPath + "/" + path
+																				app.Mounts[fullPath] = string(decodedBytes)
+																			} else {
+																				fmt.Printf("warning: failed to decode base64 for secret %s key %s: %v\n", secretName, key, err)
+																			}
+																		}
+																	}
+																}
+															}
+														} else {
+															// Mount all keys from Secret
+															for key, encodedValue := range secData {
+																if decodedBytes, err := base64.StdEncoding.DecodeString(fmt.Sprintf("%v", encodedValue)); err == nil {
+																	fullPath := mountPath + "/" + key
+																	app.Mounts[fullPath] = string(decodedBytes)
+																} else {
+																	fmt.Printf("warning: failed to decode base64 for secret %s key %s: %v\n", secretName, key, err)
+																}
+															}
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 
 	return app, nil
 }
@@ -250,5 +320,3 @@ func getStringFromMap(m map[string]interface{}, key string) string {
 	}
 	return ""
 }
-
-
