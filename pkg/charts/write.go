@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"os"
 	"strings"
-
 	"github.com/ashupednekar/compose/pkg"
 	"github.com/ashupednekar/compose/pkg/spec"
 	"go.yaml.in/yaml/v3"
 )
 
-
 func WriteCompose(apps []spec.App, name string) error {
 	useRootDir := len(apps) == 1
+	var composeDirs []string
+	
 	for _, app := range apps{
 		fmt.Printf("Name: %v\n", app.Name)
 		fmt.Printf("Image: %v\n", app.Image)
@@ -20,18 +20,23 @@ func WriteCompose(apps []spec.App, name string) error {
 		fmt.Printf("Envs: %v\n", app.Configs)
 		fmt.Printf("Mounts: %v\n", app.Mounts)
 		fmt.Printf("PostStart: %v\n===", app.PostStart)	
+		
 		dockerCompose := spec.DockerCompose{
 			Services: make(map[string]spec.DockerComposeService),
 		}
+		
 		var composeDir string
 		if useRootDir && name == app.Name{
 			composeDir = fmt.Sprintf("%s/%s", pkg.Settings.ManifestDir, app.Name)
 		}else{
 			composeDir = fmt.Sprintf("%s/%s/%s", pkg.Settings.ManifestDir, name, app.Name)
 		}
+		composeDirs = append(composeDirs, composeDir)
+		
 		if err := os.MkdirAll(composeDir, 0755); err != nil{
-	  	return fmt.Errorf("error creating manifest subdirectory")
-	  }
+			return fmt.Errorf("error creating manifest subdirectory")
+		}
+		
 		service := spec.DockerComposeService{
 			Image: app.Image,
 			Command: app.Command,
@@ -39,8 +44,9 @@ func WriteCompose(apps []spec.App, name string) error {
 			Networks: []string{}, // TODO: convert k8s netpol to this
 			Volumes: []string{},
 			Environment: app.Configs,
-		  NetworkMode: "host",
+			NetworkMode: "host",
 		}
+		
 		for mount, content := range app.Mounts{
 			parts := strings.Split(mount, "/") 
 			mountFileName := parts[len(parts)-1]
@@ -50,20 +56,85 @@ func WriteCompose(apps []spec.App, name string) error {
 			); err != nil{
 				return fmt.Errorf("error writing mapped file: %v\n", err)
 			}
-			volumeMount := fmt.Sprintf("%s:%s", mountFileName, mount) 
+			volumeMount := fmt.Sprintf("./%s:%s", mountFileName, mount) 
 			service.Volumes = append(service.Volumes, volumeMount)
 		}
+		
 		dockerCompose.Services[app.Name] = service
-    data, err := yaml.Marshal(&dockerCompose)
-	  if err != nil{
-	  	return fmt.Errorf("error marshaling docker-compose to yaml: %v\n", err)
-	  }
-	  if err := os.WriteFile(
-	  	fmt.Sprintf("%s/docker-compose.yaml", composeDir), data, 0644,
-	  ); err != nil{
-	  	return fmt.Errorf("error writing docker-compose yaml %v\n", err)
-	  }
-	  fmt.Printf("docker-compose.yaml written to %s\n", composeDir)
+		data, err := yaml.Marshal(&dockerCompose)
+		if err != nil{
+			return fmt.Errorf("error marshaling docker-compose to yaml: %v\n", err)
+		}
+		if err := os.WriteFile(
+			fmt.Sprintf("%s/docker-compose.yaml", composeDir), data, 0644,
+		); err != nil{
+			return fmt.Errorf("error writing docker-compose yaml %v\n", err)
+		}
+		fmt.Printf("docker-compose.yaml written to %s\n", composeDir)
 	}
+	
+	// Generate restart script
+	if err := generateRestartScript(composeDirs, name, useRootDir); err != nil {
+		return fmt.Errorf("error generating restart script: %v", err)
+	}
+	
+	return nil
+}
+
+func generateRestartScript(composeDirs []string, name string, useRootDir bool) error {
+	var scriptPath string
+	if useRootDir {
+		scriptPath = fmt.Sprintf("%s/%s/restart.sh", pkg.Settings.ManifestDir, name)
+	} else {
+		scriptPath = fmt.Sprintf("%s/%s/restart.sh", pkg.Settings.ManifestDir, name)
+	}
+	
+	script := `#!/bin/bash
+set -e
+
+echo "Restarting all services..."
+
+# Function to restart a single compose service
+restart_service() {
+    local dir=$1
+    local service_name=$(basename "$dir")
+    
+    echo "Stopping $service_name..."
+    cd "$dir"
+    docker-compose down
+    
+    echo "Starting $service_name..."
+    docker-compose up -d
+    
+    echo "$service_name restarted successfully"
+    echo "---"
+}
+
+# Restart each service
+`
+
+	for _, dir := range composeDirs {
+		script += fmt.Sprintf("restart_service \"%s\"\n", dir)
+	}
+	
+	script += `
+echo "All services restarted successfully!"
+
+# Optional: Show status of all services
+echo ""
+echo "Service status:"
+`
+
+	for _, dir := range composeDirs {
+		script += fmt.Sprintf("echo \"Status for %s:\"\n", dir)
+		script += fmt.Sprintf("cd \"%s\" && docker-compose ps\n", dir)
+		script += "echo \"\"\n"
+	}
+
+	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
+		return fmt.Errorf("error writing restart script: %v", err)
+	}
+	
+	fmt.Printf("Restart script written to %s\n", scriptPath)
 	return nil
 }

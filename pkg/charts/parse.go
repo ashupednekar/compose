@@ -180,17 +180,26 @@ func extractAppInfo(resource spec.Resource, configMaps map[string]interface{}, s
 	}
 
 
-	// TODO: pending, valueFrom.fieldRef.fieldPath
+	// Handle environment variables
 	if envInterface, exists := container["env"]; exists {
 		if envSlice, ok := envInterface.([]interface{}); ok {
 			for _, env := range envSlice {
 				if envMap, ok := env.(map[string]interface{}); ok {
-					if value, exists := envMap["value"]; exists{
-						key := getStringFromMap(envMap, "name")
-						app.Configs[key] = value.(string)
+					envKey := getStringFromMap(envMap, "name")
+					if envKey == "" {
+						continue // Skip if no name
 					}
+					
+					// Handle direct value
+					if value, exists := envMap["value"]; exists {
+						app.Configs[envKey] = fmt.Sprintf("%v", value)
+					}
+					
+					// Handle valueFrom
 					if valueFrom, exists := envMap["valueFrom"]; exists {
 						if valueFromMap, ok := valueFrom.(map[string]interface{}); ok {
+							
+							// Handle configMapKeyRef
 							if configMapKeyRef, exists := valueFromMap["configMapKeyRef"]; exists {
 								if keyRefMap, ok := configMapKeyRef.(map[string]interface{}); ok {
 									configMapName := getStringFromMap(keyRefMap, "name")
@@ -198,12 +207,24 @@ func extractAppInfo(resource spec.Resource, configMaps map[string]interface{}, s
 									if config, exists := configMaps[configMapName]; exists {
 								    if cfg, ok := config.(map[string]interface{}); ok{
 											if value, exists := cfg[key]; exists {
-												app.Configs[key] = value.(string)
+												app.Configs[envKey] = fmt.Sprintf("%v", value)
 											}
 										}else{
 											return nil, fmt.Errorf("invalid configmap state")
 										}
-										
+									}
+								}
+							}
+							
+							// Handle fieldRef
+							if fieldRef, exists := valueFromMap["fieldRef"]; exists {
+								if fieldRefMap, ok := fieldRef.(map[string]interface{}); ok {
+									fieldPath := getStringFromMap(fieldRefMap, "fieldPath")
+									if fieldPath != "" {
+										value := getValueFromFieldPath(resource, fieldPath)
+										if value != "" {
+											app.Configs[envKey] = value
+										}
 									}
 								}
 							}
@@ -222,6 +243,7 @@ func extractAppInfo(resource spec.Resource, configMaps map[string]interface{}, s
 						if mountMap, ok := volumeMount.(map[string]interface{}); ok {
 							mountName := getStringFromMap(mountMap, "name")
 							mountPath := getStringFromMap(mountMap, "mountPath")
+							subPath := getStringFromMap(mountMap, "subPath")
 	
 							for _, volume := range volumes {
 								if volumeMap, ok := volume.(map[string]interface{}); ok {
@@ -233,8 +255,13 @@ func extractAppInfo(resource spec.Resource, configMaps map[string]interface{}, s
 												configMapName := getStringFromMap(configMapMap, "name")
 												if config, exists := configMaps[configMapName]; exists {
 													if cfgData, ok := config.(map[string]interface{}); ok {
-														// Check if specific items are defined
-														if itemsInterface, hasItems := configMapMap["items"]; hasItems {
+														// If subPath is specified, mount specific file at mountPath
+														if subPath != "" {
+															if value, exists := cfgData[subPath]; exists {
+																app.Mounts[mountPath] = fmt.Sprintf("%v", value)
+															}
+														} else if itemsInterface, hasItems := configMapMap["items"]; hasItems {
+															// Check if specific items are defined
 															if items, ok := itemsInterface.([]interface{}); ok {
 																for _, item := range items {
 																	if itemMap, ok := item.(map[string]interface{}); ok {
@@ -265,8 +292,17 @@ func extractAppInfo(resource spec.Resource, configMaps map[string]interface{}, s
 												secretName := getStringFromMap(secretMap, "secretName")
 												if secretData, exists := secrets[secretName]; exists {
 													if secData, ok := secretData.(map[string]interface{}); ok {
-														// Check if specific items are defined
-														if itemsInterface, hasItems := secretMap["items"]; hasItems {
+														// If subPath is specified, mount specific file at mountPath
+														if subPath != "" {
+															if encodedValue, exists := secData[subPath]; exists {
+																if decodedBytes, err := base64.StdEncoding.DecodeString(fmt.Sprintf("%v", encodedValue)); err == nil {
+																	app.Mounts[mountPath] = string(decodedBytes)
+																} else {
+																	fmt.Printf("warning: failed to decode base64 for secret %s key %s: %v\n", secretName, subPath, err)
+																}
+															}
+														} else if itemsInterface, hasItems := secretMap["items"]; hasItems {
+															// Check if specific items are defined
 															if items, ok := itemsInterface.([]interface{}); ok {
 																for _, item := range items {
 																	if itemMap, ok := item.(map[string]interface{}); ok {
@@ -319,4 +355,35 @@ func getStringFromMap(m map[string]interface{}, key string) string {
 		}
 	}
 	return ""
+}
+
+func getValueFromFieldPath(resource spec.Resource, fieldPath string) string {
+	// Split the field path by dots to navigate nested fields
+	parts := strings.Split(fieldPath, ".")
+	
+	// Start with the resource as the root
+	var current interface{} = map[string]interface{}{
+		"metadata": resource.Metadata,
+		"spec":     resource.Spec,
+	}
+	
+	// Navigate through the path
+	for _, part := range parts {
+		if currentMap, ok := current.(map[string]interface{}); ok {
+			if value, exists := currentMap[part]; exists {
+				current = value
+			} else {
+				return ""
+			}
+		} else {
+			return ""
+		}
+	}
+	
+	// Convert final value to string
+	if str, ok := current.(string); ok {
+		return str
+	}
+	
+	return fmt.Sprintf("%v", current)
 }
