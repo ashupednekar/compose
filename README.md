@@ -2,7 +2,7 @@
 
 **Run Helm charts on Docker/Podman without Kubernetes**
 
-![compose logo](https://private-user-images.githubusercontent.com/25405037/494025241-c886c6ba-b2aa-4423-8044-13cd4a82b21c.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NTg5ODg4NTIsIm5iZiI6MTc1ODk4ODU1MiwicGF0aCI6Ii8yNTQwNTAzNy80OTQwMjUyNDEtYzg4NmM2YmEtYjJhYS00NDIzLTgwNDQtMTNjZDRhODJiMjFjLnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNTA5MjclMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjUwOTI3VDE1NTU1MlomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTFkZGZkNjYwZDQ3YThjMTk4YzkzN2RkZjI0YjUzMzY1MDZjZTNlN2JlZWI4YjI0M2E0OWM5Njk5YjMxNWE1NTUmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0In0.G4I4Ahx1XT14TwcmZzVX32Zl7vGHgIY7hd3ffXF-GXE)
+<img width="455" height="549" alt="Generated_Image_September_28__2025_-_12_05AM-removebg-preview" src="https://github.com/user-attachments/assets/a149220d-655a-4fcf-b366-4ac70c738b09" />
 
 `compose` is an open source tool that lets you take Helm charts and run them directly on Docker or Podman, without needing a Kubernetes cluster. It bridges the gap between Kubernetes-native packaging (Helm) and traditional container runtimes (`docker-compose.yaml`), giving you the same artifacts and deployment flows across both worlds.
 
