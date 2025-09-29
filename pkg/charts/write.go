@@ -37,10 +37,10 @@ func WriteCompose(apps []spec.App, name string) error {
 			Image: app.Image,
 			Command: app.Command,
 			Restart: "unless-stopped",
-			Networks: []string{}, // TODO: convert k8s netpol to this
 			Volumes: []string{},
 			Ports: app.Ports,
 			Environment: app.Configs,
+			Networks: []string{name},
 		}
 		for mount, content := range app.Mounts{
 			parts := strings.Split(mount, "/") 
@@ -68,7 +68,6 @@ func WriteCompose(apps []spec.App, name string) error {
 		fmt.Printf("docker-compose.yaml written to %s\n", composeDir)
 	}
 	
-	// Generate restart script
 	if err := generateRestartScript(composeDirs, name, useRootDir); err != nil {
 		return fmt.Errorf("error generating restart script: %v", err)
 	}

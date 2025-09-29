@@ -1,6 +1,7 @@
 package charts
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strconv"
 	"strings"
@@ -61,6 +62,7 @@ func (utils *ChartUtils) Parse(chart string, valuesPath string, setValues []stri
 		configMaps = replaceServiceNamesWithLocalhost(configMaps, services)
 	}
 
+	// Second pass: process Deployments and StatefulSets
 	for _, content := range resources {
 		content = strings.TrimSpace(content)
 		if content == "" {
@@ -72,13 +74,34 @@ func (utils *ChartUtils) Parse(chart string, valuesPath string, setValues []stri
 		}
 
 		if resource.Kind == "Deployment" || resource.Kind == "StatefulSet" {
-			app, err := extractAppInfo(resource, configMaps, secrets, services, useHostNetwork)
-			if useHostNetwork{
-				app.NetworkMode = "host"
-				app.Ports = []string{}
+			// Extract all containers (main + sidecars) from the pod
+			podApps, err := extractPodApps(resource, configMaps, secrets, services, useHostNetwork)
+			if err != nil {
+				fmt.Printf("error extracting pod apps: %v\n", err)
+				continue
 			}
-			if err == nil && app != nil {
-				apps = append(apps, *app)
+			
+			if len(podApps) > 0 {
+				// Handle sidecar networking
+				if len(podApps) > 1 && !useHostNetwork {
+					// Multiple containers in pod - setup shared network namespace
+					mainApp := &podApps[0]
+					mainApp.NetworkMode = ""
+					
+					for i := 1; i < len(podApps); i++ {
+						sidecar := &podApps[i]
+						sidecar.NetworkMode = fmt.Sprintf("service:%s", mainApp.Name)
+						sidecar.Ports = []string{} // Sidecars don't expose ports directly
+					}
+				} else if useHostNetwork {
+					// Host networking for all containers
+					for i := range podApps {
+						podApps[i].NetworkMode = "host"
+						podApps[i].Ports = []string{} // No port mapping needed with host network
+					}
+				}
+				
+				apps = append(apps, podApps...)
 			}
 		}
 	}
@@ -190,9 +213,10 @@ func replaceServiceNamesWithLocalhost(configMaps map[string]interface{}, service
 	return updatedConfigMaps
 }
 
-func extractAppInfo(resource spec.Resource, configMaps map[string]interface{}, secrets map[string]interface{}, services map[string]spec.ServiceInfo, useHostNetwork bool) (*spec.App, error) {
-	name := getStringFromMap(resource.Metadata, "name")
-	if name == "" {
+// Extract all containers from a pod (main + sidecars)
+func extractPodApps(resource spec.Resource, configMaps map[string]interface{}, secrets map[string]interface{}, services map[string]spec.ServiceInfo, useHostNetwork bool) ([]spec.App, error) {
+	podName := getStringFromMap(resource.Metadata, "name")
+	if podName == "" {
 		return nil, fmt.Errorf("missing metadata.name")
 	}
 
@@ -216,21 +240,7 @@ func extractAppInfo(resource spec.Resource, configMaps map[string]interface{}, s
 		return nil, fmt.Errorf("no containers found")
 	}
 
-	container, ok := containers[0].(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("invalid container format")
-	}
-
-	app := &spec.App{
-		Name:    name,
-		Type:    resource.Kind,
-		Image:   getStringFromMap(container, "image"),
-		Configs: make(map[string]string),
-		Mounts:  make(map[string]string),
-		Ports:   []string{}, // Add ports field
-	}
-
-	// Find matching service and add ports
+	// Get pod labels for service matching
 	labels := make(map[string]string)
 	if metadata, exists := specs["metadata"]; exists {
 		if metadataMap, ok := metadata.(map[string]interface{}); ok {
@@ -246,136 +256,164 @@ func extractAppInfo(resource spec.Resource, configMaps map[string]interface{}, s
 		}
 	}
 
-	for _, serviceInfo := range services {
-		if matchesSelector(labels, serviceInfo.Selector) {
-			for _, portInfo := range serviceInfo.Ports {
-				if useHostNetwork {
-					app.Ports = append(app.Ports, fmt.Sprintf("%d:%d", portInfo.Port, portInfo.Port))
-				} else {
-					app.Ports = append(app.Ports, fmt.Sprintf("%d:%d", portInfo.Port, portInfo.Port))
-				}
-			}
-		}
-	}
-
-	// ... rest of the existing extractAppInfo function remains the same
-	// (command, args, lifecycle, envFrom, env, volumeMounts handling)
+	var apps []spec.App
 	
-	if cmdInterface, exists := container["command"]; exists {
-		if cmdSlice, ok := cmdInterface.([]interface{}); ok {
-			for _, cmd := range cmdSlice {
-				if cmdStr, ok := cmd.(string); ok {
-					app.Command = append(app.Command, cmdStr)
-				}
-			}
+	// Process each container
+	for i, containerInterface := range containers {
+		container, ok := containerInterface.(map[string]interface{})
+		if !ok {
+			continue
 		}
-	}
-	if argsInterface, exists := container["args"]; exists {
-		if argsSlice, ok := argsInterface.([]interface{}); ok {
-			for _, arg := range argsSlice {
-				if argStr, ok := arg.(string); ok {
-					app.Command = append(app.Command, argStr)
-				}
-			}
-		}
-	}
 
-	if lifecycleInterface, exists := container["lifecycle"]; exists {
-		if lifecycle, ok := lifecycleInterface.(map[string]interface{}); ok {
-			if postStartInterface, exists := lifecycle["postStart"]; exists {
-				if postStart, ok := postStartInterface.(map[string]interface{}); ok {
-					hook := &spec.PostStartHook{}
-					if execInterface, exists := postStart["exec"]; exists {
-						if exec, ok := execInterface.(map[string]interface{}); ok {
-							hook.Type = "exec"
-							if cmdInterface, exists := exec["command"]; exists {
-								if cmdSlice, ok := cmdInterface.([]interface{}); ok {
-									for _, cmd := range cmdSlice {
-										if cmdStr, ok := cmd.(string); ok {
-											hook.Command = append(hook.Command, cmdStr)
-										}
-									}
-								}
-							}
-						}
-					} else if httpGetInterface, exists := postStart["httpGet"]; exists {
-						if httpGet, ok := httpGetInterface.(map[string]interface{}); ok {
-							hook.Type = "httpGet"
-							path := getStringFromMap(httpGet, "path")
-							port := getStringFromMap(httpGet, "port")
-							hook.HTTPGet = fmt.Sprintf("%s:%s", path, port)
+		containerName := getStringFromMap(container, "name")
+		if containerName == "" {
+			containerName = fmt.Sprintf("%s-%d", podName, i)
+		}
+
+		app := spec.App{
+			Name:    containerName,
+			Type:    resource.Kind,
+			Image:   getStringFromMap(container, "image"),
+			Configs: make(map[string]string),
+			Mounts:  make(map[string]string),
+			Ports:   []string{},
+		}
+
+		// Only add ports to the first container (main container)
+		if i == 0 {
+			for _, serviceInfo := range services {
+				if matchesSelector(labels, serviceInfo.Selector) {
+					for _, portInfo := range serviceInfo.Ports {
+						if useHostNetwork {
+							app.Ports = append(app.Ports, fmt.Sprintf("%d:%d", portInfo.Port, portInfo.Port))
+						} else {
+							app.Ports = append(app.Ports, fmt.Sprintf("%d:%d", portInfo.Port, portInfo.Port))
 						}
 					}
-					if hook.Type != "" {
-						app.PostStart = hook
+					break
+				}
+			}
+		}
+
+		// Extract command and args
+		if cmdInterface, exists := container["command"]; exists {
+			if cmdSlice, ok := cmdInterface.([]interface{}); ok {
+				for _, cmd := range cmdSlice {
+					if cmdStr, ok := cmd.(string); ok {
+						app.Command = append(app.Command, cmdStr)
 					}
 				}
 			}
 		}
-	}
-
-	if envFromInterface, exists := container["envFrom"]; exists {
-		if envFromSlice, ok := envFromInterface.([]interface{}); ok {
-			for _, envFrom := range envFromSlice {
-				if envFromMap, ok := envFrom.(map[string]interface{}); ok {
-					if configMapRef, exists := envFromMap["configMapRef"]; exists {
-						if configMapRefMap, ok := configMapRef.(map[string]interface{}); ok {
-							configMapName := getStringFromMap(configMapRefMap, "name")
-							if config, exists := configMaps[configMapName]; exists {
-								cfgMap, ok := config.(map[string]interface{})
-								if !ok {
-									return nil, fmt.Errorf("invalid configmap state")
-								}
-								for k, v := range cfgMap {
-									app.Configs[k] = fmt.Sprintf("%v", v)
-								}
-							}
-						}
+		if argsInterface, exists := container["args"]; exists {
+			if argsSlice, ok := argsInterface.([]interface{}); ok {
+				for _, arg := range argsSlice {
+					if argStr, ok := arg.(string); ok {
+						app.Command = append(app.Command, argStr)
 					}
 				}
 			}
 		}
-	}
 
-	// Handle environment variables
-	if envInterface, exists := container["env"]; exists {
-		if envSlice, ok := envInterface.([]interface{}); ok {
-			for _, env := range envSlice {
-				if envMap, ok := env.(map[string]interface{}); ok {
-					envKey := getStringFromMap(envMap, "name")
-					if envKey == "" {
-						continue
-					}
-					
-					if value, exists := envMap["value"]; exists {
-						app.Configs[envKey] = fmt.Sprintf("%v", value)
-					}
-					
-					if valueFrom, exists := envMap["valueFrom"]; exists {
-						if valueFromMap, ok := valueFrom.(map[string]interface{}); ok {
-							if configMapKeyRef, exists := valueFromMap["configMapKeyRef"]; exists {
-								if keyRefMap, ok := configMapKeyRef.(map[string]interface{}); ok {
-									configMapName := getStringFromMap(keyRefMap, "name")
-									key := getStringFromMap(keyRefMap, "key")
-									if config, exists := configMaps[configMapName]; exists {
-										if cfg, ok := config.(map[string]interface{}); ok {
-											if value, exists := cfg[key]; exists {
-												app.Configs[envKey] = fmt.Sprintf("%v", value)
+		// Extract lifecycle hooks
+		if lifecycleInterface, exists := container["lifecycle"]; exists {
+			if lifecycle, ok := lifecycleInterface.(map[string]interface{}); ok {
+				if postStartInterface, exists := lifecycle["postStart"]; exists {
+					if postStart, ok := postStartInterface.(map[string]interface{}); ok {
+						hook := &spec.PostStartHook{}
+						if execInterface, exists := postStart["exec"]; exists {
+							if exec, ok := execInterface.(map[string]interface{}); ok {
+								hook.Type = "exec"
+								if cmdInterface, exists := exec["command"]; exists {
+									if cmdSlice, ok := cmdInterface.([]interface{}); ok {
+										for _, cmd := range cmdSlice {
+											if cmdStr, ok := cmd.(string); ok {
+												hook.Command = append(hook.Command, cmdStr)
 											}
-										} else {
-											return nil, fmt.Errorf("invalid configmap state")
 										}
 									}
 								}
 							}
-							
-							if fieldRef, exists := valueFromMap["fieldRef"]; exists {
-								if fieldRefMap, ok := fieldRef.(map[string]interface{}); ok {
-									fieldPath := getStringFromMap(fieldRefMap, "fieldPath")
-									if fieldPath != "" {
-										value := getValueFromFieldPath(resource, fieldPath)
-										if value != "" {
-											app.Configs[envKey] = value
+						} else if httpGetInterface, exists := postStart["httpGet"]; exists {
+							if httpGet, ok := httpGetInterface.(map[string]interface{}); ok {
+								hook.Type = "httpGet"
+								path := getStringFromMap(httpGet, "path")
+								port := getStringFromMap(httpGet, "port")
+								hook.HTTPGet = fmt.Sprintf("%s:%s", path, port)
+							}
+						}
+						if hook.Type != "" {
+							app.PostStart = hook
+						}
+					}
+				}
+			}
+		}
+
+		// Extract envFrom (ConfigMap references)
+		if envFromInterface, exists := container["envFrom"]; exists {
+			if envFromSlice, ok := envFromInterface.([]interface{}); ok {
+				for _, envFrom := range envFromSlice {
+					if envFromMap, ok := envFrom.(map[string]interface{}); ok {
+						if configMapRef, exists := envFromMap["configMapRef"]; exists {
+							if configMapRefMap, ok := configMapRef.(map[string]interface{}); ok {
+								configMapName := getStringFromMap(configMapRefMap, "name")
+								if config, exists := configMaps[configMapName]; exists {
+									cfgMap, ok := config.(map[string]interface{})
+									if !ok {
+										return nil, fmt.Errorf("invalid configmap state")
+									}
+									for k, v := range cfgMap {
+										app.Configs[k] = fmt.Sprintf("%v", v)
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Handle environment variables
+		if envInterface, exists := container["env"]; exists {
+			if envSlice, ok := envInterface.([]interface{}); ok {
+				for _, env := range envSlice {
+					if envMap, ok := env.(map[string]interface{}); ok {
+						envKey := getStringFromMap(envMap, "name")
+						if envKey == "" {
+							continue
+						}
+						
+						if value, exists := envMap["value"]; exists {
+							app.Configs[envKey] = fmt.Sprintf("%v", value)
+						}
+						
+						if valueFrom, exists := envMap["valueFrom"]; exists {
+							if valueFromMap, ok := valueFrom.(map[string]interface{}); ok {
+								if configMapKeyRef, exists := valueFromMap["configMapKeyRef"]; exists {
+									if keyRefMap, ok := configMapKeyRef.(map[string]interface{}); ok {
+										configMapName := getStringFromMap(keyRefMap, "name")
+										key := getStringFromMap(keyRefMap, "key")
+										if config, exists := configMaps[configMapName]; exists {
+											if cfg, ok := config.(map[string]interface{}); ok {
+												if value, exists := cfg[key]; exists {
+													app.Configs[envKey] = fmt.Sprintf("%v", value)
+												}
+											} else {
+												return nil, fmt.Errorf("invalid configmap state")
+											}
+										}
+									}
+								}
+								
+								if fieldRef, exists := valueFromMap["fieldRef"]; exists {
+									if fieldRefMap, ok := fieldRef.(map[string]interface{}); ok {
+										fieldPath := getStringFromMap(fieldRefMap, "fieldPath")
+										if fieldPath != "" {
+											value := getValueFromFieldPath(resource, fieldPath)
+											if value != "" {
+												app.Configs[envKey] = value
+											}
 										}
 									}
 								}
@@ -385,11 +423,122 @@ func extractAppInfo(resource spec.Resource, configMaps map[string]interface{}, s
 				}
 			}
 		}
-	}
 
-	// ... rest of volumeMounts handling remains the same
+		// Handle volume mounts
+		if volumeMountsInterface, exists := container["volumeMounts"]; exists {
+			if volumeMounts, ok := volumeMountsInterface.([]interface{}); ok {
+				if volumesInterface, exists := templateSpec["volumes"]; exists {
+					if volumes, ok := volumesInterface.([]interface{}); ok {
+						for _, volumeMount := range volumeMounts {
+							if mountMap, ok := volumeMount.(map[string]interface{}); ok {
+								mountName := getStringFromMap(mountMap, "name")
+								mountPath := getStringFromMap(mountMap, "mountPath")
+								subPath := getStringFromMap(mountMap, "subPath")
+		
+								for _, volume := range volumes {
+									if volumeMap, ok := volume.(map[string]interface{}); ok {
+										volumeName := getStringFromMap(volumeMap, "name")
+										if volumeName == mountName {
+											// Handle ConfigMap volumes
+											if configMap, exists := volumeMap["configMap"]; exists {
+												if configMapMap, ok := configMap.(map[string]interface{}); ok {
+													configMapName := getStringFromMap(configMapMap, "name")
+													if config, exists := configMaps[configMapName]; exists {
+														if cfgData, ok := config.(map[string]interface{}); ok {
+															// If subPath is specified, mount specific file at mountPath
+															if subPath != "" {
+																if value, exists := cfgData[subPath]; exists {
+																	app.Mounts[mountPath] = fmt.Sprintf("%v", value)
+																}
+															} else if itemsInterface, hasItems := configMapMap["items"]; hasItems {
+																// Check if specific items are defined
+																if items, ok := itemsInterface.([]interface{}); ok {
+																	for _, item := range items {
+																		if itemMap, ok := item.(map[string]interface{}); ok {
+																			key := getStringFromMap(itemMap, "key")
+																			path := getStringFromMap(itemMap, "path")
+																			if value, exists := cfgData[key]; exists {
+																				fullPath := mountPath + "/" + path
+																				app.Mounts[fullPath] = fmt.Sprintf("%v", value)
+																			}
+																		}
+																	}
+																}
+															} else {
+																// Mount all keys from ConfigMap
+																for key, value := range cfgData {
+																	fullPath := mountPath + "/" + key
+																	app.Mounts[fullPath] = fmt.Sprintf("%v", value)
+																}
+															}
+														}
+													}
+												}
+											}
+											
+											// Handle Secret volumes
+											if secret, exists := volumeMap["secret"]; exists {
+												if secretMap, ok := secret.(map[string]interface{}); ok {
+													secretName := getStringFromMap(secretMap, "secretName")
+													if secretData, exists := secrets[secretName]; exists {
+														if secData, ok := secretData.(map[string]interface{}); ok {
+															// If subPath is specified, mount specific file at mountPath
+															if subPath != "" {
+																if encodedValue, exists := secData[subPath]; exists {
+																	if decodedBytes, err := base64.StdEncoding.DecodeString(fmt.Sprintf("%v", encodedValue)); err == nil {
+																		app.Mounts[mountPath] = string(decodedBytes)
+																	} else {
+																		fmt.Printf("warning: failed to decode base64 for secret %s key %s: %v\n", secretName, subPath, err)
+																	}
+																}
+															} else if itemsInterface, hasItems := secretMap["items"]; hasItems {
+																// Check if specific items are defined
+																if items, ok := itemsInterface.([]interface{}); ok {
+																	for _, item := range items {
+																		if itemMap, ok := item.(map[string]interface{}); ok {
+																			key := getStringFromMap(itemMap, "key")
+																			path := getStringFromMap(itemMap, "path")
+																			if encodedValue, exists := secData[key]; exists {
+																				// Decode base64
+																				if decodedBytes, err := base64.StdEncoding.DecodeString(fmt.Sprintf("%v", encodedValue)); err == nil {
+																					fullPath := mountPath + "/" + path
+																					app.Mounts[fullPath] = string(decodedBytes)
+																				} else {
+																					fmt.Printf("warning: failed to decode base64 for secret %s key %s: %v\n", secretName, key, err)
+																				}
+																			}
+																		}
+																	}
+																}
+															} else {
+																// Mount all keys from Secret
+																for key, encodedValue := range secData {
+																	if decodedBytes, err := base64.StdEncoding.DecodeString(fmt.Sprintf("%v", encodedValue)); err == nil {
+																		fullPath := mountPath + "/" + key
+																		app.Mounts[fullPath] = string(decodedBytes)
+																	} else {
+																		fmt.Printf("warning: failed to decode base64 for secret %s key %s: %v\n", secretName, key, err)
+																	}
+																}
+															}
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		apps = append(apps, app)
+	}
 	
-	return app, nil
+	return apps, nil
 }
 
 func matchesSelector(labels map[string]string, selector map[string]string) bool {
