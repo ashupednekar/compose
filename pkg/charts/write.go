@@ -44,7 +44,9 @@ func WriteCompose(apps []spec.App, name string) error {
 			Networks: []string{}, // TODO: convert k8s netpol to this
 			Volumes: []string{},
 			Environment: app.Configs,
-			NetworkMode: "host",
+		}
+		if len(service.Networks) == 0{
+			service.NetworkMode = "host"
 		}
 		
 		for mount, content := range app.Mounts{
