@@ -11,6 +11,7 @@ type App struct {
 	Configs   map[string]string `json:"configs"`
 	Mounts    map[string]string `json:"mounts"` 
 	Ports     []string          `json:"ports"`
+	NetworkMode string          `json:"NetworkMode"`
 }
 
 type PostStartHook struct {
@@ -108,6 +109,5 @@ type ServiceInfo struct {
 
 type PortInfo struct {
     Port       int    `json:"port"`
-    TargetPort int    `json:"targetPort"`
     Protocol   string `json:"protocol"`
 }

@@ -57,12 +57,10 @@ func (utils *ChartUtils) Parse(chart string, valuesPath string, setValues []stri
 		}
 	}
 
-	// If using host network, replace service names with localhost in configmaps
 	if useHostNetwork {
 		configMaps = replaceServiceNamesWithLocalhost(configMaps, services)
 	}
 
-	// Second pass: process Deployments and StatefulSets
 	for _, content := range resources {
 		content = strings.TrimSpace(content)
 		if content == "" {
@@ -75,6 +73,10 @@ func (utils *ChartUtils) Parse(chart string, valuesPath string, setValues []stri
 
 		if resource.Kind == "Deployment" || resource.Kind == "StatefulSet" {
 			app, err := extractAppInfo(resource, configMaps, secrets, services, useHostNetwork)
+			if useHostNetwork{
+				app.NetworkMode = "host"
+				app.Ports = []string{}
+			}
 			if err == nil && app != nil {
 				apps = append(apps, *app)
 			}
@@ -89,24 +91,19 @@ func extractServiceInfo(resource spec.Resource, useHostNetwork bool, usedPorts m
 	if name == "" {
 		return nil, fmt.Errorf("service missing metadata.name")
 	}
-
 	ports, ok := resource.Spec["ports"]
 	if !ok {
 		return nil, fmt.Errorf("service missing ports")
 	}
-
 	portsSlice, ok := ports.([]interface{})
 	if !ok {
 		return nil, fmt.Errorf("service ports not in expected format")
 	}
-
 	serviceInfo := &spec.ServiceInfo{
 		Name:     name,
 		Ports:    []spec.PortInfo{},
 		Selector: make(map[string]string),
 	}
-
-	// Extract selector
 	if selector, exists := resource.Spec["selector"]; exists {
 		if selectorMap, ok := selector.(map[string]interface{}); ok {
 			for k, v := range selectorMap {
@@ -116,8 +113,6 @@ func extractServiceInfo(resource spec.Resource, useHostNetwork bool, usedPorts m
 			}
 		}
 	}
-
-	// Process ports
 	for _, portInterface := range portsSlice {
 		if portMap, ok := portInterface.(map[string]interface{}); ok {
 			portInfo := spec.PortInfo{}
@@ -134,15 +129,15 @@ func extractServiceInfo(resource spec.Resource, useHostNetwork bool, usedPorts m
 			
 			if targetPort, exists := portMap["targetPort"]; exists {
 				if targetPortInt, ok := targetPort.(int); ok {
-					portInfo.TargetPort = targetPortInt
+					portInfo.Port = targetPortInt
 				} else if targetPortStr, ok := targetPort.(string); ok {
 					if tp, err := strconv.Atoi(targetPortStr); err == nil {
-						portInfo.TargetPort = tp
+						portInfo.Port = tp
 					}
 				}
 			} else {
 				// If targetPort is not specified, it defaults to port
-				portInfo.TargetPort = portInfo.Port
+				portInfo.Port = portInfo.Port
 			}
 			
 			if protocol, exists := portMap["protocol"]; exists {
@@ -153,16 +148,13 @@ func extractServiceInfo(resource spec.Resource, useHostNetwork bool, usedPorts m
 				portInfo.Protocol = "TCP"
 			}
 
-			// Check for port conflicts when using host networking
 			if useHostNetwork {
-				fmt.Printf("usedPorts: %v\n", usedPorts)
-				if existingService, exists := usedPorts[portInfo.TargetPort]; exists {
+				if existingService, exists := usedPorts[portInfo.Port]; exists {
 					return nil, fmt.Errorf("port conflict: port %d is already used by service %s, cannot be used by service %s", 
-						portInfo.TargetPort, existingService, name)
+						portInfo.Port, existingService, name)
 				}
-				usedPorts[portInfo.TargetPort] = name
+				usedPorts[portInfo.Port] = name
 			}
-
 			serviceInfo.Ports = append(serviceInfo.Ports, portInfo)
 		}
 	}
@@ -254,19 +246,15 @@ func extractAppInfo(resource spec.Resource, configMaps map[string]interface{}, s
 		}
 	}
 
-	// Match service selector with pod labels
 	for _, serviceInfo := range services {
 		if matchesSelector(labels, serviceInfo.Selector) {
 			for _, portInfo := range serviceInfo.Ports {
 				if useHostNetwork {
-					// For host networking, only expose the target port
-					app.Ports = append(app.Ports, fmt.Sprintf("%d:%d", portInfo.TargetPort, portInfo.TargetPort))
+					app.Ports = append(app.Ports, fmt.Sprintf("%d:%d", portInfo.Port, portInfo.Port))
 				} else {
-					// For bridge networking, map service port to target port
-					app.Ports = append(app.Ports, fmt.Sprintf("%d:%d", portInfo.Port, portInfo.TargetPort))
+					app.Ports = append(app.Ports, fmt.Sprintf("%d:%d", portInfo.Port, portInfo.Port))
 				}
 			}
-			break // Assume one service per app for now
 		}
 	}
 

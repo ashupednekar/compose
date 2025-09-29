@@ -39,12 +39,15 @@ Alto triggers activities like image pulls in the background...
 		if err != nil{
 			fmt.Printf("error getting chart flag: %s\n", err)
 		}
+		useHostNetwork, err := cmd.Flags().GetBool("useHostNetwork")
+		if err != nil{
+			fmt.Printf("error getting useHostNetwork flag: %s\n", err)
+		}
 		cUtils, err := charts.NewChartUtils()
 		if err != nil{
 			fmt.Printf("error initializing chart utils")
 		}
-		//TODO: accept flag for host networking
-		apps, err := cUtils.Parse(chart, valuesPath, setValues, true)
+		apps, err := cUtils.Parse(chart, valuesPath, setValues, useHostNetwork)
 		if err != nil{
 			fmt.Printf("error parsing manifest: %v\n", err)
 		}
@@ -59,5 +62,6 @@ func init() {
 
 	syncCmd.Flags().StringP("chart", "c", "chart", "chart repository")
 	syncCmd.Flags().StringP("values", "f", "values", "values path")
+	syncCmd.Flags().Bool("useHostNetwork", false, "whether to use host network or not")
 	syncCmd.Flags().StringSliceP("set", "s", []string{}, "Set values on the command line (can specify multiple)")
 }

@@ -14,15 +14,11 @@ func WriteCompose(apps []spec.App, name string) error {
 	var composeDirs []string
 	
 	for _, app := range apps{
-		fmt.Printf("Name: %v\n", app.Name)
-		fmt.Printf("Image: %v\n", app.Image)
-		fmt.Printf("Command: %v\n", app.Command)
-		fmt.Printf("Envs: %v\n", app.Configs)
-		fmt.Printf("Mounts: %v\n", app.Mounts)
-		fmt.Printf("PostStart: %v\n===", app.PostStart)	
-		
 		dockerCompose := spec.DockerCompose{
 			Services: make(map[string]spec.DockerComposeService),
+			Networks: map[string]interface{}{
+				name: map[string]interface{}{"name": name},
+			},
 		}
 		
 		var composeDir string
@@ -43,12 +39,9 @@ func WriteCompose(apps []spec.App, name string) error {
 			Restart: "unless-stopped",
 			Networks: []string{}, // TODO: convert k8s netpol to this
 			Volumes: []string{},
+			Ports: app.Ports,
 			Environment: app.Configs,
 		}
-		if len(service.Networks) == 0{
-			service.NetworkMode = "host"
-		}
-		
 		for mount, content := range app.Mounts{
 			parts := strings.Split(mount, "/") 
 			mountFileName := parts[len(parts)-1]
