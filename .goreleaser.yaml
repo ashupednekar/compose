@@ -1,18 +1,10 @@
-# This is an example .goreleaser.yml file with some sensible defaults.
-# Make sure to check the documentation at https://goreleaser.com
-
-# The lines below are called `modelines`. See `:help modeline`
-# Feel free to remove those if you don't want/need to use them.
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 # vim: set ts=2 sw=2 tw=0 fo=cnqoj
-
 version: 2
 
 before:
   hooks:
-    # You may remove this if you don't use go modules.
     - go mod tidy
-    # you may remove this if you don't need go generate
     - go generate ./...
 
 builds:
@@ -22,10 +14,13 @@ builds:
       - linux
       - windows
       - darwin
+    goarch:
+      - amd64
+      - arm64
+      - 386
 
 archives:
-  - formats: [tar.gz, deb]
-    # this name template makes the OS and Arch compatible with the results of `uname`.
+  - format: tar.gz
     name_template: >-
       {{ .ProjectName }}_
       {{- title .Os }}_
@@ -33,10 +28,50 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
-    # use zip for windows archives
     format_overrides:
       - goos: windows
-        formats: [zip]
+        format: zip
+
+# Debian/Ubuntu packages for apt install
+nfpms:
+  - id: packages
+    package_name: "{{ .ProjectName }}"
+    vendor: YourName
+    homepage: https://github.com/ashupednekar/compose
+    maintainer: Your Name <your.email@example.com>
+    description: |-
+      Your project description here.
+      Add more details about what your project does.
+    license: MIT
+    formats:
+      - deb
+      - rpm
+      - apk
+    bindir: /usr/bin
+    section: utils
+    contents:
+      - src: ./LICENSE
+        dst: /usr/share/doc/{{ .ProjectName }}/copyright
+        file_info:
+          mode: 0644
+    dependencies:
+      - git
+    recommends:
+      - golang
+
+# Homebrew tap for brew install
+brews:
+  - repository:
+      owner: ashupednekar
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/ashupednekar/compose
+    description: A tool for managing docker-compose projects
+    license: MIT
+    test: |
+      system "#{bin}/{{ .ProjectName }} --version"
+    install: |-
+      bin.install "{{ .ProjectName }}"
 
 changelog:
   sort: asc
@@ -44,10 +79,26 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+      - "^chore:"
+      - "^ci:"
 
 release:
-  footer: >-
-
+  github:
+    owner: ashupednekar
+    name: compose
+  footer: |-
+    ## Installation
+    
+    ### Homebrew (macOS/Linux)
+    ```bash
+    brew install ashupednekar/tap/{{ .ProjectName }}
+    ```
+    
+    ### APT (Debian/Ubuntu)
+    ```bash
+    # Download the .deb file from the release assets
+    sudo dpkg -i {{ .ProjectName }}_*_linux_amd64.deb
+    ```
+    
     ---
-
     Released by [GoReleaser](https://github.com/goreleaser/goreleaser).
