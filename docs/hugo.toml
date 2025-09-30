@@ -12,3 +12,31 @@ publishDir = "public"
     path = "github.com/gohugoio/hugo-mod-bootstrap-scss/v5"
     disable = false
 
+
+[params]
+  # Hero Section
+  heroTitle = "Compose: Multi-Platform Dev Tooling"
+  heroSubtitle = "Simplifying container orchestration, deployment, and configuration for developers."
+  heroCta1Text = "Get Started"
+  heroCta1Url = "/docs/"
+  heroCta2Text = "GitHub Repo"
+  heroCta2Url = "https://github.com/ashupednekar/compose"
+
+  # Features / Highlights Section
+  [[params.features]]
+    title = "Declarative YAML"
+    description = "Write configuration once and deploy anywhere."
+  [[params.features]]
+    title = "Docker & Kubernetes"
+    description = "Seamless multi-platform container orchestration."
+  [[params.features]]
+    title = "Documentation"
+    description = "Hugo-powered docs with live updates from GitHub."
+  [[params.features]]
+    title = "Extensible"
+    description = "Support for modules and plugins to extend functionality."
+
+  # Footer links
+  githubUrl = "https://github.com/ashupednekar/compose"
+  issuesUrl = "https://github.com/ashupednekar/compose/issues"
+  docsUrl = "/docs/"
