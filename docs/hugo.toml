@@ -2,7 +2,7 @@ baseURL = "https://ashupednekar.github.io/compose/"
 languageCode = "en-us"
 title = "Compose Docs"
 canonifyURLs = true
-publishDir = "../public"
+publishDir = "public"
 
 [module]
   [[module.imports]]
