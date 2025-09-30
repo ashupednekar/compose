@@ -10,30 +10,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ Set up Hugo
-      - name: Set up Hugo
+      - name: Setup Hugo
         uses: peaceiris/actions-hugo@v3
         with:
           hugo-version: '0.150.1'
           extended: true
 
-      # 3️⃣ Build the Hugo site
       - name: Build Hugo site
         working-directory: docs
         run: hugo --minify
 
-      # 4️⃣ Deploy to gh-pages
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: docs/public
-          destination_branch: gh-pages
+          publish_branch: gh-pages
           force_orphan: true
           commit_message: "Deploy Hugo site"
-          nojekyll: true
+          user_name: "GitHub Actions"
+          user_email: "actions@github.com"
+          enable_jekyll: false
 
