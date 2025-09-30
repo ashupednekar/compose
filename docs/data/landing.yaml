@@ -2,32 +2,29 @@ hero:
   enable: true
   weight: 10
   template: hero
-
   backgroundImage:
     path: "images/templates/hero"
     filename:
       desktop: "gradient-desktop.webp"
       mobile: "gradient-mobile.webp"
-
   badge:
     text: v0.1.0
     color: primary 
     pill: false 
     soft: true 
-
+  titleLogo:
+    path: "images"
+    filename: "compose-logo.png"
+    alt: "Compose"
+    height: 80px
   title: "Compose"
-  subtitle: |
-    Run Helm charts on Docker/Podman without Kubernetes.
-    An open-source tool that lets you take Helm charts and run them directly on Docker or Podman, without needing a Kubernetes cluster. It bridges the gap between Kubernetes-native packaging (Helm) and traditional container runtimes (`docker-compose.yaml`), giving you the same artifacts and deployment flows across both worlds.
-
+  subtitle: "Run Helm charts on Docker/Podman without Kubernetes. An open-source tool that lets you take Helm charts and run them directly on Docker or Podman, without needing a Kubernetes cluster. It bridges the gap between Kubernetes-native packaging (Helm) and traditional container runtimes (docker-compose.yaml), giving you the same artifacts and deployment flows across both worlds."
   image:
     path: "images" 
-    #filename: "scshtone.png"
     filename: "lotus_docs_screenshot.png"
     alt: "Compose Screenshot" 
     boxShadow: true 
     rounded: true 
-
   ctaButton:
     icon: rocket_launch
     btnText: "Get Started"
@@ -36,6 +33,49 @@ hero:
     icon: construction
     btnText: "In Development"
     url: "https://github.com/ashupednekar/compose"
-
   info: "**Open Source** Apache-2.0 Licensed."
 
+featureGrid:
+  enable: true
+  weight: 20
+  template: feature grid
+  title: "Why choose Compose?"
+  subtitle: "Compose is a lightweight tool that allows you to run Helm charts on Docker or Podman without needing a Kubernetes cluster. Here are some reasons to choose Compose:"
+  
+  items:
+    - title: "Fast"
+      icon: speed
+      description: "Compose is designed to be lightweight and fast, enabling quick deployment of Helm charts."
+      ctaLink:
+        text: "Learn more"
+        url: "/docs/"
+    - title: "Kubernetes Compatibility"
+      icon: trending_up
+      description: "Run Helm charts directly on Docker or Podman, bridging the gap between Kubernetes-native packaging and traditional container runtimes."
+      ctaLink:
+        text: "Learn more"
+        url: "/docs/"
+    - title: "Customizable"
+      icon: settings
+      description: "Easily customize your Helm charts to suit your development and deployment needs."
+      ctaLink:
+        text: "Learn more"
+        url: "/docs/"
+    - title: "Open Source"
+      icon: code
+      description: "Compose is open source and licensed under the Apache-2.0 license, allowing for community contributions and transparency."
+      ctaLink:
+        text: "Learn more"
+        url: "https://github.com/ashupednekar/compose"
+    - title: "Ingress Support"
+      icon: dns
+      description: "Converts Kubernetes Ingress resources to nginx configuration files, making it easy to expose your services with proper routing."
+      ctaLink:
+        text: "Learn more"
+        url: "/docs/"
+    - title: "Dependency Resolution"
+      icon: account_tree
+      description: "Automatically handles Helm chart dependencies, pulling and deploying all required sub-charts alongside your main application."
+      ctaLink:
+        text: "Learn more"
+        url: "/docs/"
