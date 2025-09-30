@@ -1,0 +1,35 @@
+name: Build and Deploy Docs
+
+on:
+  push:
+    branches:
+      - main   # or your default branch
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          submodules: true   # fetch Lotus Docs theme
+          fetch-depth: 0     # full history for gh-pages deploy
+
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v2
+        with:
+          hugo-version: 'latest'
+          extended: true
+
+      - name: Build site
+        working-directory: ./docs
+        run: hugo --minify
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/public
+          publish_branch: gh-pages
+          cname: compose.ashupednekar.github.io
+
