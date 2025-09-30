@@ -1,0 +1,39 @@
+name: Deploy docs
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout repo
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2️⃣ Install Hugo extended
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: '0.150.1'
+          extended: true
+
+      # 3️⃣ Build Hugo site
+      - name: Build Hugo
+        working-directory: docs
+        run: hugo --minify
+
+      # 4️⃣ Deploy to gh-pages
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v7
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs/public
+          destination_branch: gh-pages
+          force_orphan: true
+          commit_message: "Deploy Hugo site"
+          nojekyll: true
+
