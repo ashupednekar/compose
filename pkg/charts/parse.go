@@ -50,7 +50,8 @@ func (utils *ChartUtils) Parse(chart string, valuesPath string, setValues []stri
 		} else if resource.Kind == "Service" {
 			serviceInfo, err := extractServiceInfo(resource, useHostNetwork, usedPorts)
 			if err != nil {
-				return nil, fmt.Errorf("error processing service: %v", err)
+				fmt.Printf("warning: error processing service - %s\n", err)
+				continue
 			}
 			if serviceInfo != nil {
 				name := getStringFromMap(resource.Metadata, "name")
@@ -286,9 +287,7 @@ func extractPodApps(resource spec.Resource, configMaps map[string]interface{}, s
 			for _, serviceInfo := range services {
 				if matchesSelector(labels, serviceInfo.Selector) {
 					for _, portInfo := range serviceInfo.Ports {
-						if useHostNetwork {
-							app.Ports = append(app.Ports, fmt.Sprintf("%d:%d", portInfo.Port, portInfo.Port))
-						} else {
+						if !useHostNetwork {
 							app.Ports = append(app.Ports, fmt.Sprintf("%d:%d", portInfo.Port, portInfo.Port))
 						}
 					}

@@ -29,6 +29,7 @@ Alto triggers activities like image pulls in the background...
 		chart, err := cmd.Flags().GetString("chart")
 		if err != nil{
 			fmt.Printf("error getting chart flag: %s\n", err)
+			return
 		}
 		setValues, err := cmd.Flags().GetStringSlice("set")
 		if err != nil {
@@ -38,14 +39,16 @@ Alto triggers activities like image pulls in the background...
 		valuesPath, err := cmd.Flags().GetString("values")
 		if err != nil{
 			fmt.Printf("error getting chart flag: %s\n", err)
+			return
 		}
 		useHostNetwork, err := cmd.Flags().GetBool("useHostNetwork")
 		if err != nil{
 			fmt.Printf("error getting useHostNetwork flag: %s\n", err)
+			return
 		}
 		cUtils, err := charts.NewChartUtils()
 		if err != nil{
-			fmt.Printf("error initializing chart utils")
+			fmt.Printf("error initializing chart utils: %s\n", err)
 		}
 		apps, err := cUtils.Parse(chart, valuesPath, setValues, useHostNetwork)
 		if err != nil{
