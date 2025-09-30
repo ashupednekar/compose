@@ -1,0 +1,14 @@
+baseURL = "https://ashupednekar.github.io/compose/"
+languageCode = "en-us"
+title = "Compose Docs"
+canonifyURLs = true
+publishDir = "../public"
+
+[module]
+  [[module.imports]]
+    path = "github.com/colinwilson/lotusdocs"
+    disable = false
+  [[module.imports]]
+    path = "github.com/gohugoio/hugo-mod-bootstrap-scss/v5"
+    disable = false
+
