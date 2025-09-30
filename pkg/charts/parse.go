@@ -3,6 +3,7 @@ package charts
 import (
 	"encoding/base64"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -197,7 +198,8 @@ func replaceServiceNamesWithLocalhost(configMaps map[string]interface{}, service
 					updatedValue := strValue
 					// Replace each service name with localhost
 					for serviceName := range services {
-						updatedValue = strings.ReplaceAll(updatedValue, serviceName, "localhost")
+						pattern := regexp.MustCompile(`\b` + regexp.QuoteMeta(serviceName) + `\b`)
+						updatedValue = pattern.ReplaceAllString(updatedValue, "localhost")
 					}
 					updatedCfgMap[key] = updatedValue
 				} else {
