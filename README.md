@@ -15,7 +15,7 @@ In most environments we prefer k3s + ArgoCD for continuous deployment and day-2 
 - Converting them into `docker-compose.yaml` automatically  
 - Delivering a CD-like experience on Docker/Podman runtimes
 
-No drift, no duplicate work — just consistent deployments everywhere.
+No drift, no duplicate work — just consistent deployments everywhere. 
 
 ## Features
 
