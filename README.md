@@ -10,7 +10,7 @@
 
 In most environments we prefer k3s + ArgoCD for continuous deployment and day-2 updates. But not all clients allow this — especially those running RHEL with Podman and no Kubernetes. That forces teams back to `docker-compose.yaml`, often rebuilt manually → error-prone, slow, and inconsistent.
 
-**compose fixes this by:**
+**compose fixes this by:** 
 - Reusing the same Helm pipeline artifacts you already generate
 - Converting them into `docker-compose.yaml` automatically  
 - Delivering a CD-like experience on Docker/Podman runtimes
