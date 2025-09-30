@@ -1,2 +1,5 @@
 manifests/
+manifest.yaml
 compose
+# Added by goreleaser init:
+dist/

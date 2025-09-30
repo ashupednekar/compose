@@ -10,6 +10,8 @@ type App struct {
 	PostStart *PostStartHook    `json:"postStart,omitempty"`
 	Configs   map[string]string `json:"configs"`
 	Mounts    map[string]string `json:"mounts"` 
+	Ports     []string          `json:"ports"`
+	NetworkMode string          `json:"NetworkMode"`
 }
 
 type PostStartHook struct {
@@ -89,6 +91,7 @@ type DockerComposeService struct{
 	Volumes     []string          `yaml:"volumes,omitempty"`
 	Restart     string            `yaml:"restart,omitempty"`
 	Networks    []string          `yaml:"networks,omitempty"`
+	Ports       []string          `yaml:"ports"`
 	NetworkMode string `yaml:"network_mode,omitempty"`
 }
 
@@ -97,3 +100,14 @@ type DockerCompose struct{
 	Networks map[string]interface{} `yaml:"networks"`
 }
 
+//--additional--
+type ServiceInfo struct {
+    Name     string             `json:"name"`
+    Ports    []PortInfo         `json:"ports"`
+    Selector map[string]string  `json:"selector"`
+}
+
+type PortInfo struct {
+    Port       int    `json:"port"`
+    Protocol   string `json:"protocol"`
+}

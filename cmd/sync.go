@@ -28,7 +28,8 @@ Alto triggers activities like image pulls in the background...
 	Run: func(cmd *cobra.Command, args []string) {
 		chart, err := cmd.Flags().GetString("chart")
 		if err != nil{
-			fmt.Printf("error getting chart flag: %s", err)
+			fmt.Printf("error getting chart flag: %s\n", err)
+			return
 		}
 		setValues, err := cmd.Flags().GetStringSlice("set")
 		if err != nil {
@@ -37,18 +38,24 @@ Alto triggers activities like image pulls in the background...
 		}
 		valuesPath, err := cmd.Flags().GetString("values")
 		if err != nil{
-			fmt.Printf("error getting chart flag: %s", err)
+			fmt.Printf("error getting chart flag: %s\n", err)
+			return
+		}
+		useHostNetwork, err := cmd.Flags().GetBool("useHostNetwork")
+		if err != nil{
+			fmt.Printf("error getting useHostNetwork flag: %s\n", err)
+			return
 		}
 		cUtils, err := charts.NewChartUtils()
 		if err != nil{
-			fmt.Printf("error initializing chart utils")
+			fmt.Printf("error initializing chart utils: %s\n", err)
 		}
-		apps, err := cUtils.Parse(chart, valuesPath, setValues)
+		apps, err := cUtils.Parse(chart, valuesPath, setValues, useHostNetwork)
 		if err != nil{
-			fmt.Printf("error parsing manifest")
+			fmt.Printf("error parsing manifest: %v\n", err)
 		}
 		if err := charts.WriteCompose(apps, charts.ExtractName(chart)); err != nil {
-				fmt.Printf("error writing docker compose: %s", err)
+				fmt.Printf("error writing docker compose: %s\n", err)
 		}
 	},
 }
@@ -58,5 +65,6 @@ func init() {
 
 	syncCmd.Flags().StringP("chart", "c", "chart", "chart repository")
 	syncCmd.Flags().StringP("values", "f", "values", "values path")
+	syncCmd.Flags().Bool("useHostNetwork", false, "whether to use host network or not")
 	syncCmd.Flags().StringSliceP("set", "s", []string{}, "Set values on the command line (can specify multiple)")
 }

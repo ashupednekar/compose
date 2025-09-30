@@ -14,15 +14,11 @@ func WriteCompose(apps []spec.App, name string) error {
 	var composeDirs []string
 	
 	for _, app := range apps{
-		fmt.Printf("Name: %v\n", app.Name)
-		fmt.Printf("Image: %v\n", app.Image)
-		fmt.Printf("Command: %v\n", app.Command)
-		fmt.Printf("Envs: %v\n", app.Configs)
-		fmt.Printf("Mounts: %v\n", app.Mounts)
-		fmt.Printf("PostStart: %v\n===", app.PostStart)	
-		
 		dockerCompose := spec.DockerCompose{
 			Services: make(map[string]spec.DockerComposeService),
+			Networks: map[string]interface{}{
+				name: map[string]interface{}{"name": name},
+			},
 		}
 		
 		var composeDir string
@@ -41,12 +37,11 @@ func WriteCompose(apps []spec.App, name string) error {
 			Image: app.Image,
 			Command: app.Command,
 			Restart: "unless-stopped",
-			Networks: []string{}, // TODO: convert k8s netpol to this
 			Volumes: []string{},
+			Ports: app.Ports,
 			Environment: app.Configs,
-			NetworkMode: "host",
+			Networks: []string{name},
 		}
-		
 		for mount, content := range app.Mounts{
 			parts := strings.Split(mount, "/") 
 			mountFileName := parts[len(parts)-1]
@@ -73,7 +68,6 @@ func WriteCompose(apps []spec.App, name string) error {
 		fmt.Printf("docker-compose.yaml written to %s\n", composeDir)
 	}
 	
-	// Generate restart script
 	if err := generateRestartScript(composeDirs, name, useRootDir); err != nil {
 		return fmt.Errorf("error generating restart script: %v", err)
 	}

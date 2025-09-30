@@ -1,0 +1,104 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - 386
+
+archives:
+  - format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+
+# Debian/Ubuntu packages for apt install
+nfpms:
+  - id: packages
+    package_name: "{{ .ProjectName }}"
+    vendor: YourName
+    homepage: https://github.com/ashupednekar/compose
+    maintainer: Your Name <your.email@example.com>
+    description: |-
+      Your project description here.
+      Add more details about what your project does.
+    license: MIT
+    formats:
+      - deb
+      - rpm
+      - apk
+    bindir: /usr/bin
+    section: utils
+    contents:
+      - src: ./LICENSE
+        dst: /usr/share/doc/{{ .ProjectName }}/copyright
+        file_info:
+          mode: 0644
+    dependencies:
+      - git
+    recommends:
+      - golang
+
+# Homebrew tap for brew install
+brews:
+  - repository:
+      owner: ashupednekar
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/ashupednekar/compose
+    description: A tool for managing docker-compose projects
+    license: MIT
+    test: |
+      system "#{bin}/{{ .ProjectName }} --version"
+    install: |-
+      bin.install "{{ .ProjectName }}"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+
+release:
+  github:
+    owner: ashupednekar
+    name: compose
+  footer: |-
+    ## Installation
+    
+    ### Homebrew (macOS/Linux)
+    ```bash
+    brew install ashupednekar/tap/{{ .ProjectName }}
+    ```
+    
+    ### APT (Debian/Ubuntu)
+    ```bash
+    # Download the .deb file from the release assets
+    sudo dpkg -i {{ .ProjectName }}_*_linux_amd64.deb
+    ```
+    
+    ---
+    Released by [GoReleaser](https://github.com/goreleaser/goreleaser).
