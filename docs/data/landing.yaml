@@ -31,7 +31,7 @@ hero:
     url: "/docs/quickstart/"
   cta2Button:
     icon: construction
-    btnText: "In Development"
+    btnText: "View on GitHub"
     url: "https://github.com/ashupednekar/compose"
   info: "**Open Source** Apache-2.0 Licensed."
 
@@ -43,39 +43,134 @@ featureGrid:
   subtitle: "Compose is a lightweight tool that allows you to run Helm charts on Docker or Podman without needing a Kubernetes cluster. Here are some reasons to choose Compose:"
   
   items:
-    - title: "Fast"
+    - title: "No Kubernetes Required"
+      icon: cloud_off
+      description: "Deploy your applications on Docker or Podman without setting up a Kubernetes cluster. Perfect for edge devices, RHEL environments, and resource-constrained systems where Kubernetes isn't available."
+      ctaLink:
+        text: "Learn more"
+        url: "/docs/overview/"
+        
+    - title: "Fast & Lightweight"
       icon: speed
-      description: "Compose is designed to be lightweight and fast, enabling quick deployment of Helm charts."
+      description: "Single static Go binary with no external dependencies. Compose is designed to be lightweight and fast, enabling quick deployment of Helm charts without the overhead of a full Kubernetes cluster."
       ctaLink:
         text: "Learn more"
-        url: "/docs/"
-    - title: "Kubernetes Compatibility"
-      icon: trending_up
-      description: "Run Helm charts directly on Docker or Podman, bridging the gap between Kubernetes-native packaging and traditional container runtimes."
+        url: "/docs/installation/"
+        
+    - title: "Helm Chart Compatible"
+      icon: inventory_2
+      description: "Run Helm charts directly on Docker or Podman, bridging the gap between Kubernetes-native packaging and traditional container runtimes. Use the same artifacts everywhere."
       ctaLink:
         text: "Learn more"
-        url: "/docs/"
-    - title: "Customizable"
-      icon: settings
-      description: "Easily customize your Helm charts to suit your development and deployment needs."
+        url: "/docs/features/helm-charts/"
+        
+    - title: "Automatic Dependency Resolution"
+      icon: account_tree
+      description: "Automatically handles Helm chart dependencies, pulling and deploying all required sub-charts alongside your main application. No manual intervention needed."
       ctaLink:
         text: "Learn more"
-        url: "/docs/"
-    - title: "Open Source"
-      icon: code
-      description: "Compose is open source and licensed under the Apache-2.0 license, allowing for community contributions and transparency."
-      ctaLink:
-        text: "Learn more"
-        url: "https://github.com/ashupednekar/compose"
+        url: "/docs/features/dependencies/"
+        
     - title: "Ingress Support"
       icon: dns
-      description: "Converts Kubernetes Ingress resources to nginx configuration files, making it easy to expose your services with proper routing."
+      description: "Converts Kubernetes Ingress resources to nginx configuration files, making it easy to expose your services with proper routing and load balancing."
       ctaLink:
         text: "Learn more"
-        url: "/docs/"
-    - title: "Dependency Resolution"
+        url: "/docs/features/ingress/"
+        
+    - title: "CI/CD Ready"
+      icon: loop
+      description: "Integrates seamlessly into your CI/CD pipelines. Generate docker-compose.yaml files automatically from your Helm releases and deploy with confidence in any environment."
+      ctaLink:
+        text: "Learn more"
+        url: "/docs/guides/cicd-integration/"
+
+deploymentWorkflow:
+  enable: true
+  weight: 30
+  template: image text
+  title: "Simple Deployment Workflow"
+  subtitle: "From Helm chart to running containers in three simple steps"
+  list:
+    - text: "Convert Helm charts to docker-compose.yaml"
+      icon: transform
+    - text: "Reuses existing Docker/Podman authentication"
+      icon: verified_user
+    - text: "Deploy with standard container tooling"
+      icon: rocket_launch
+    - text: "Automatic dependency resolution"
       icon: account_tree
-      description: "Automatically handles Helm chart dependencies, pulling and deploying all required sub-charts alongside your main application."
-      ctaLink:
-        text: "Learn more"
-        url: "/docs/"
+    - text: "Production-ready configurations"
+      icon: check_circle
+  image:
+    path: "images"
+    filename: "workflow-diagram.png"
+    alt: "Compose Workflow"
+  reverse: false
+
+architectureComparison:
+  enable: true
+  weight: 40
+  template: image compare
+  title: "The Problem Compose Solves"
+  subtitle: "Most teams prefer Kubernetes with Helm for deployments, but not all environments support it. Compose lets you use the same Helm artifacts in both worlds."
+  
+  items:
+    - title: "Traditional Approach"
+      image:
+        path: "images"
+        filename: "before-compose.png"
+        alt: "Before Compose"
+    - title: "With Compose"
+      image:
+        path: "images"
+        filename: "after-compose.png"
+        alt: "After Compose"
+
+consistentArtifacts:
+  enable: true
+  weight: 50
+  template: image text
+  title: "One Artifact, Multiple Runtimes"
+  subtitle: "Stop maintaining separate docker-compose.yaml files and Helm charts. Use Compose to generate docker-compose configurations from your existing Helm charts."
+  list:
+    - text: "Same Helm charts work everywhere"
+      icon: sync
+    - text: "No duplicate maintenance burden"
+      icon: content_copy
+    - text: "Consistent deployments across environments"
+      icon: done_all
+    - text: "Battle-tested in production"
+      icon: verified
+  image:
+    path: "images"
+    filename: "consistent-artifacts.png"
+    alt: "Consistent Artifacts"
+  reverse: true
+  ctaButton:
+    btnText: "View Examples"
+    url: "/docs/examples/"
+
+openSource:
+  enable: true
+  weight: 60
+  template: image text
+  title: "Open Source & Community Driven"
+  subtitle: "Compose is open source and licensed under Apache-2.0. Contributions, issues, and feedback are welcome!"
+  list:
+    - text: "Apache-2.0 licensed"
+      icon: license
+    - text: "Active development and maintenance"
+      icon: update
+    - text: "Community contributions welcome"
+      icon: groups
+    - text: "Transparent development on GitHub"
+      icon: code
+  image:
+    path: "images"
+    filename: "open-source.png"
+    alt: "Open Source"
+  reverse: false
+  ctaButton:
+    btnText: "Contribute on GitHub"
+    url: "https://github.com/ashupednekar/compose"

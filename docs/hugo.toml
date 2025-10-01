@@ -1,3 +1,5 @@
+# Complete hugo.toml configuration with dark mode enabled
+
 baseURL = "https://ashupednekar.github.io/compose/"
 languageCode = "en-us"
 title = "Compose Docs"
@@ -12,4 +14,66 @@ publishDir = "public"
     path = "github.com/gohugoio/hugo-mod-bootstrap-scss/v5"
     disable = false
 
+# Theme Parameters
+[params]
+  # Dark Mode Settings
+  darkMode = "dark"  # Options: "light", "dark", "auto" (respects system preference)
+  darkModeToggle = true  # Show dark/light mode toggle button
+  
+  # Site Description
+  description = "Run Helm charts on Docker/Podman without Kubernetes"
+  
+  # Logo
+  [params.logo]
+    logo = "images/compose-logo.png"
+    logoMarkIcon = "compose"
+    
+  # Footer
+  [params.footer]
+    copyright = "© 2025 Compose. Apache-2.0 Licensed."
+    version = true  # Include version in footer
+    
+  # Social Links (optional)
+  [params.social]
+    github = "https://github.com/ashupednekar/compose"
+    
+  # Docs Settings
+  [params.docs]
+    title = "Compose Documentation"
+    description = "Complete guide to running Helm charts on Docker/Podman"
+    
+  # Landing Page
+  [params.landing]
+    enable = true
+    
+  # Search (optional - requires Algolia or other search setup)
+  [params.search]
+    enable = false
 
+# Syntax Highlighting (works great with dark mode)
+[markup]
+  [markup.highlight]
+    style = "dracula"  # Dark theme for code blocks
+    lineNos = true
+    lineNumbersInTable = true
+    noClasses = false
+
+# Menu Configuration
+[menu]
+  [[menu.primary]]
+    name = "Docs"
+    url = "/docs/"
+    weight = 10
+    
+  [[menu.primary]]
+    name = "GitHub"
+    url = "https://github.com/ashupednekar/compose"
+    weight = 20
+    
+# Language Settings
+[languages]
+  [languages.en]
+    languageName = "English"
+    weight = 1
+    [languages.en.params]
+      languageISO = "EN"
