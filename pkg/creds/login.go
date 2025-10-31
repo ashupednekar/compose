@@ -14,8 +14,8 @@ import (
 )
 
 
-func AuthenticateWithRegistry(method string, engine string, force bool) (*charts.ChartUtils, error) {
-	c, err := charts.NewChartUtils()
+func AuthenticateWithRegistry(method string, engine string, force bool, insecureSkipTLSVerify bool) (*charts.ChartUtils, error) {
+	c, err := charts.NewChartUtils(insecureSkipTLSVerify)
 	if err != nil{
 		return nil, fmt.Errorf("error initiating chart utils: %s", err)
 	}

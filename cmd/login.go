@@ -37,7 +37,12 @@ var loginCmd = &cobra.Command{
 			fmt.Printf("error reading force flag: %s\n", err)
 			return
 		}
-		if _, err := creds.AuthenticateWithRegistry(method, engine, force); err != nil{
+		insecureSkipTLSVerify, err := cmd.Flags().GetBool("insecure-skip-tls-verify")
+		if err != nil {
+			fmt.Printf("error reading insecure-skip-tls-verify flag: %s\n", err)
+			return
+		}
+		if _, err := creds.AuthenticateWithRegistry(method, engine, force, insecureSkipTLSVerify); err != nil{
 			fmt.Printf("error authenticating to registry: %s", err)
 		}
 	},
@@ -49,5 +54,6 @@ func init() {
 	loginCmd.Flags().StringP("method", "m", "dockerconfig", "Select between dockerconfig or tokenrefresher")
 	loginCmd.Flags().StringP("engine", "e", "docker", "Select between docker and podman")
 	loginCmd.Flags().BoolP("force", "f", false, "Force login, ignoring existing credentials")
+	loginCmd.Flags().Bool("insecure-skip-tls-verify", false, "skip tls verification for registry authentication")
 	// loginCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

@@ -15,7 +15,7 @@ import (
 
 func (utils *ChartUtils) Template(chart string, valuesPath string, setValues []string) (*release.Release, error){
 	actionConfig := new(action.Configuration)
-	if err := actionConfig.Init(nil, "", "secret", logDebug); err != nil{
+	if err := actionConfig.Init(cli.New().RESTClientGetter(), "", "secret", logDebug); err != nil{
 		 fmt.Printf("error initiating action config")
 	}
 	actionConfig.RegistryClient = utils.Client

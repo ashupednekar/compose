@@ -37,7 +37,12 @@ compose refresh
 			fmt.Printf("error getting set flags: %s\n", err)
 			return
 		}
-		cUtils, err := charts.NewChartUtils()
+		insecureSkipTLSVerify, err := cmd.Flags().GetBool("insecure-skip-tls-verify")
+		if err != nil {
+			fmt.Printf("error getting insecure-skip-tls-verify flag: %s\n", err)
+			return
+		}
+		cUtils, err := charts.NewChartUtils(insecureSkipTLSVerify)
 		if err != nil{
 			fmt.Printf("error initializing chart utils")
 		}
@@ -54,6 +59,7 @@ func init() {
 	rootCmd.AddCommand(refreshCmd)
 	refreshCmd.Flags().StringP("chart", "c", "chart", "chart repository")
 	refreshCmd.Flags().StringP("values", "f", "values", "values path")
+	refreshCmd.Flags().Bool("insecure-skip-tls-verify", false, "skip tls verification for chart pulling")
 	refreshCmd.Flags().StringSliceP("set", "s", []string{}, "Set values on the command line (can specify multiple)")
 }
 

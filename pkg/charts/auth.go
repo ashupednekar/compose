@@ -2,9 +2,11 @@ package charts
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,13 +22,22 @@ type ChartUtils struct{
 	Client *registry.Client
 }
 
-func NewChartUtils() (*ChartUtils, error){
-	registryClient, err := registry.NewClient()
-	c := ChartUtils{Client: registryClient}
-	if err != nil{
-		return nil, fmt.Errorf("failed to create registry client")
+func NewChartUtils(insecureSkipTLSVerify bool) (*ChartUtils, error) {
+	var opts []registry.ClientOption
+	if insecureSkipTLSVerify {
+		transport := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client := &http.Client{Transport: transport}
+		opts = append(opts, registry.ClientOptHTTPClient(client))
 	}
-	return &c, nil
+
+	registryClient, err := registry.NewClient(opts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create registry client: %w", err)
+	}
+
+	return &ChartUtils{Client: registryClient}, nil
 }
 
 func getHelmConfigDir() string {

@@ -46,7 +46,12 @@ Alto triggers activities like image pulls in the background...
 			fmt.Printf("error getting useHostNetwork flag: %s\n", err)
 			return
 		}
-		cUtils, err := charts.NewChartUtils()
+		insecureSkipTLSVerify, err := cmd.Flags().GetBool("insecure-skip-tls-verify")
+		if err != nil {
+			fmt.Printf("error getting insecure-skip-tls-verify flag: %s\n", err)
+			return
+		}
+		cUtils, err := charts.NewChartUtils(insecureSkipTLSVerify)
 		if err != nil{
 			fmt.Printf("error initializing chart utils: %s\n", err)
 		}
@@ -66,5 +71,6 @@ func init() {
 	syncCmd.Flags().StringP("chart", "c", "chart", "chart repository")
 	syncCmd.Flags().StringP("values", "f", "values", "values path")
 	syncCmd.Flags().Bool("useHostNetwork", false, "whether to use host network or not")
+	syncCmd.Flags().Bool("insecure-skip-tls-verify", false, "skip tls verification for chart pulling")
 	syncCmd.Flags().StringSliceP("set", "s", []string{}, "Set values on the command line (can specify multiple)")
 }
